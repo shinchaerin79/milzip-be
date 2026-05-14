@@ -13,6 +13,9 @@ public enum AuthErrorCode implements BaseErrorCode {
   // 400 Bad Request
   INVALID_CREDENTIALS("AUTH4001", "아이디 또는 비밀번호가 일치하지 않습니다.", HttpStatus.BAD_REQUEST),
   DUPLICATE_EMAIL("AUTH4002", "이미 사용 중인 이메일입니다.", HttpStatus.BAD_REQUEST),
+  EMAIL_NOT_VERIFIED("AUTH4003", "이메일 인증이 완료되지 않았습니다.", HttpStatus.BAD_REQUEST),
+  VERIFICATION_CODE_INVALID("AUTH4004", "인증 코드가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
+  VERIFICATION_CODE_EXPIRED("AUTH4005", "인증 코드가 만료되었습니다.", HttpStatus.BAD_REQUEST),
 
   // 401 Unauthorized
   AUTHENTICATION_REQUIRED("AUTH4011", "인증이 필요합니다.", HttpStatus.UNAUTHORIZED),
@@ -22,7 +25,12 @@ public enum AuthErrorCode implements BaseErrorCode {
   INVALID_REFRESH_TOKEN("AUTH4015", "유효하지 않은 리프레시 토큰입니다.", HttpStatus.UNAUTHORIZED),
 
   // 404 Not Found
-  MEMBER_NOT_FOUND("AUTH4041", "존재하지 않는 회원입니다.", HttpStatus.NOT_FOUND);
+  USER_NOT_FOUND("AUTH4041", "존재하지 않는 회원입니다.", HttpStatus.NOT_FOUND),
+
+  // 500 Internal Server Error
+  EMAIL_SEND_FAILED("AUTH5001", "이메일 전송에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+  EMAIL_AUTH_FAILED(
+      "AUTH5002", "메일 서버 인증에 실패했습니다. 서버 관리자에게 문의해 주세요.", HttpStatus.INTERNAL_SERVER_ERROR);
 
   private final String code;
   private final String message;

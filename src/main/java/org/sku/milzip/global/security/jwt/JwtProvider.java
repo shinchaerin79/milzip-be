@@ -1,6 +1,7 @@
 package org.sku.milzip.global.security.jwt;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.stream.Collectors;
 
 import javax.crypto.SecretKey;
 
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.sku.milzip.global.config.properties.JwtProperties;
@@ -25,6 +27,8 @@ import lombok.RequiredArgsConstructor;
 @Component
 @RequiredArgsConstructor
 public class JwtProvider {
+
+  public static final String ACCESS_TOKEN_COOKIE = "accessToken";
 
   private static final String ROLES_CLAIM = "roles";
   private static final String BEARER_PREFIX = "Bearer ";
@@ -51,10 +55,18 @@ public class JwtProvider {
         .compact();
   }
 
+  /** Authorization 헤더(Bearer) 우선 조회, 없으면 accessToken 쿠키에서 추출합니다. */
   public String extractAccessToken(HttpServletRequest request) {
     String bearer = request.getHeader(HttpHeaders.AUTHORIZATION);
     if (StringUtils.hasText(bearer) && bearer.startsWith(BEARER_PREFIX)) {
       return bearer.substring(BEARER_PREFIX.length());
+    }
+    if (request.getCookies() != null) {
+      return Arrays.stream(request.getCookies())
+          .filter(c -> ACCESS_TOKEN_COOKIE.equals(c.getName()))
+          .map(Cookie::getValue)
+          .findFirst()
+          .orElse(null);
     }
     return null;
   }

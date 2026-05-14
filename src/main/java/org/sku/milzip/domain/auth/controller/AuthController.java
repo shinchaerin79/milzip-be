@@ -1,0 +1,179 @@
+package org.sku.milzip.domain.auth.controller;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+
+import org.sku.milzip.domain.auth.dto.LoginRequest;
+import org.sku.milzip.domain.auth.dto.PasswordResetRequest;
+import org.sku.milzip.domain.auth.dto.SendVerificationEmailRequest;
+import org.sku.milzip.domain.auth.dto.SignUpRequest;
+import org.sku.milzip.domain.auth.dto.TokenResponse;
+import org.sku.milzip.domain.auth.dto.VerifyEmailRequest;
+import org.sku.milzip.domain.auth.entity.VerificationType;
+import org.sku.milzip.domain.auth.service.AuthService;
+import org.sku.milzip.global.common.BaseResponse;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+
+@Tag(name = "Auth", description = "인증/인가 API")
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+  private final AuthService authService;
+
+  @Operation(
+      summary = "[ 비회원 | 토큰 X | 이메일 인증 코드 발송 ]",
+      description =
+          """
+          **Purpose**
+          - 회원가입 전 이메일 소유 여부 확인을 위한 인증 코드 발송
+          - 동일 이메일로 재요청 시 기존 코드는 삭제되고 새 코드가 발송됩니다
+
+          **Parameters**
+          - email: 이메일 주소 (RFC 5322 형식, ex. user@example.com)
+
+          **Returns**
+          - message: "인증 코드가 발송되었습니다."
+
+          **Note**
+          - 인증 코드는 6자리 숫자이며 **5분간** 유효합니다
+          - 코드 발송 후 반드시 `PATCH /api/auth/email-verifications` 로 인증을 완료해야 합니다
+          """)
+  @PostMapping("/email-verifications")
+  public BaseResponse<Void> sendVerificationEmail(
+      @Valid @RequestBody SendVerificationEmailRequest request) {
+    authService.sendVerificationEmail(request, VerificationType.SIGNUP);
+    return BaseResponse.success("인증 코드가 발송되었습니다.", null);
+  }
+
+  @Operation(
+      summary = "[ 비회원 | 토큰 X | 이메일 인증 코드 확인 ]",
+      description =
+          """
+          **Purpose**
+          - 발송된 인증 코드 일치 여부 확인 및 이메일 인증 완료 처리
+
+          **Parameters**
+          - email: 인증 코드를 수신한 이메일 주소
+          - code: 6자리 숫자 인증 코드
+
+          **Returns**
+          - message: "이메일 인증이 완료되었습니다."
+
+          **Error**
+          - AUTH4004: 코드 불일치
+          - AUTH4005: 코드 만료 (5분 초과)
+          """)
+  @PatchMapping("/email-verifications")
+  public BaseResponse<Void> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+    authService.verifyEmail(request, VerificationType.SIGNUP);
+    return BaseResponse.success("이메일 인증이 완료되었습니다.", null);
+  }
+
+  @Operation(
+      summary = "[ 비회원 | 토큰 X | 회원가입 ]",
+      description =
+          """
+          **Purpose**
+          - 이메일 인증이 완료된 계정으로 회원가입
+
+          **Parameters**
+          - email: 이메일 인증이 완료된 주소
+          - password: 8~20자, 영문·숫자·특수문자(!@#$%^&*) 각 1자 이상 포함 (ex. Password1!)
+          - nickname: 2~20자
+
+          **Returns**
+          - message: "회원가입이 완료되었습니다."
+
+          **Error**
+          - AUTH4002: 이미 가입된 이메일
+          - AUTH4003: 이메일 인증 미완료
+          """)
+  @PostMapping("/register")
+  public BaseResponse<Void> register(@Valid @RequestBody SignUpRequest request) {
+    authService.signUp(request);
+    return BaseResponse.success("회원가입이 완료되었습니다.", null);
+  }
+
+  @Operation(
+      summary = "[ 비회원 | 토큰 X | 로그인 ]",
+      description =
+          """
+          **Purpose**
+          - 이메일·비밀번호 기반 로그인
+
+          **Parameters**
+          - email: 가입 시 사용한 이메일
+          - password: 계정 비밀번호
+
+          **Returns**
+          - accessToken: Bearer 토큰 (유효기간 30분), Authorization 헤더에 담아 요청
+          - refreshToken: HttpOnly 쿠키로 자동 설정 (유효기간 14일)
+
+          **Error**
+          - AUTH4001: 이메일 또는 비밀번호 불일치
+          - AUTH4003: 이메일 인증 미완료
+          """)
+  @PostMapping("/login")
+  public BaseResponse<TokenResponse> login(
+      @Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+    return BaseResponse.success(authService.login(request, response));
+  }
+
+  @Operation(
+      summary = "[ 비회원 | 토큰 X | 임시 비밀번호 발급 ]",
+      description =
+          """
+          **Purpose**
+          - 비밀번호 분실 시 임시 비밀번호를 이메일로 발송
+          - 로그인 후 반드시 비밀번호를 변경해야 합니다 (temporaryPassword: true)
+
+          **Parameters**
+          - email: 가입 시 사용한 이메일
+
+          **Returns**
+          - message: "임시 비밀번호가 이메일로 발송되었습니다."
+
+          **Error**
+          - AUTH4041: 존재하지 않는 이메일
+          """)
+  @PostMapping("/password-resets")
+  public BaseResponse<Void> resetPassword(@Valid @RequestBody PasswordResetRequest request) {
+    authService.resetPassword(request);
+    return BaseResponse.success("임시 비밀번호가 이메일로 발송되었습니다.", null);
+  }
+
+  @Operation(
+      summary = "[ 사용자 | 토큰 O | 액세스 토큰 재발급 ]",
+      description =
+          """
+          **Purpose**
+          - 만료된 액세스 토큰을 리프레시 토큰으로 재발급
+
+          **Parameters**
+          - refreshToken: 로그인 시 발급된 HttpOnly 쿠키 (자동 전송)
+
+          **Returns**
+          - accessToken: 새로운 Bearer 토큰 (유효기간 30분)
+          - refreshToken: 갱신된 리프레시 토큰 (쿠키 자동 갱신, 유효기간 14일)
+
+          **Error**
+          - AUTH4014: 리프레시 토큰 만료 → 재로그인 필요
+          - AUTH4015: 유효하지 않은 리프레시 토큰
+          """)
+  @PostMapping("/tokens/refresh")
+  public BaseResponse<TokenResponse> refreshTokens(
+      HttpServletRequest request, HttpServletResponse response) {
+    return BaseResponse.success(authService.reissueTokens(request, response));
+  }
+}
