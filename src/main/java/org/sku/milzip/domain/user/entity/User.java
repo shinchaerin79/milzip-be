@@ -53,6 +53,8 @@ public class User extends BaseTimeEntity {
 
   private String socialId;
 
+  private String name;
+
   @Column(nullable = false)
   private boolean temporaryPassword;
 
@@ -66,6 +68,20 @@ public class User extends BaseTimeEntity {
     user.role = UserRole.MEMBER;
     user.status = UserStatus.PENDING_EMAIL;
     user.authType = AuthType.LOCAL;
+    user.militaryStatus = MilitaryStatus.NOT_VERIFIED;
+    user.temporaryPassword = false;
+    return user;
+  }
+
+  public static User ofKakao(String socialId, String nickname, String email, String name) {
+    User user = new User();
+    user.socialId = socialId;
+    user.email = email != null ? email : "kakao_" + socialId + "@milzip.kakao";
+    user.nickname = nickname;
+    user.name = name;
+    user.role = UserRole.MEMBER;
+    user.status = UserStatus.ACTIVE;
+    user.authType = AuthType.KAKAO;
     user.militaryStatus = MilitaryStatus.NOT_VERIFIED;
     user.temporaryPassword = false;
     return user;

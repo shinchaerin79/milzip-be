@@ -6,8 +6,9 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.sku.milzip.domain.auth.dto.KakaoUserInfoResponse;
 import org.sku.milzip.domain.auth.dto.LoginRequest;
-import org.sku.milzip.domain.auth.dto.PasswordResetRequest;
+import org.sku.milzip.domain.auth.dto.PasswordChangeRequest;
 import org.sku.milzip.domain.auth.dto.SendVerificationEmailRequest;
 import org.sku.milzip.domain.auth.dto.SignUpRequest;
 import org.sku.milzip.domain.auth.dto.TokenResponse;
@@ -45,6 +46,7 @@ public class AuthService {
   private final EmailVerificationRepository emailVerificationRepository;
   private final RefreshTokenRepository refreshTokenRepository;
   private final EmailService emailService;
+  private final KakaoAuthService kakaoAuthService;
   private final JwtProvider jwtProvider;
   private final JwtProperties jwtProperties;
   private final PasswordEncoder passwordEncoder;
@@ -215,23 +217,81 @@ public class AuthService {
   }
 
   @Transactional
-  public void resetPassword(PasswordResetRequest request) {
-    log.info("[AuthService] 임시 비밀번호 발급 요청 - email: {}", request.email());
+  public void changePassword(PasswordChangeRequest request) {
+    log.info("[AuthService] 비밀번호 변경 요청 - email: {}", request.email());
+
+    EmailVerification verification =
+        emailVerificationRepository
+            .findTopByEmailAndTypeOrderByIdDesc(request.email(), VerificationType.PASSWORD_RESET)
+            .orElseThrow(
+                () -> {
+                  log.warn("[AuthService] 비밀번호 변경 실패 - 이메일 인증 기록 없음, email: {}", request.email());
+                  return new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
+                });
+
+    if (!verification.isVerified()) {
+      log.warn("[AuthService] 비밀번호 변경 실패 - 이메일 인증 미완료, email: {}", request.email());
+      throw new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
+    }
 
     User user =
         userRepository
             .findByEmail(request.email())
             .orElseThrow(
                 () -> {
-                  log.warn("[AuthService] 임시 비밀번호 발급 실패 - 존재하지 않는 이메일: {}", request.email());
+                  log.warn("[AuthService] 비밀번호 변경 실패 - 존재하지 않는 이메일: {}", request.email());
                   return new CustomException(AuthErrorCode.USER_NOT_FOUND);
                 });
 
-    String tempPassword = emailService.generateTemporaryPassword();
-    user.applyTemporaryPassword(passwordEncoder.encode(tempPassword));
-    emailService.sendTemporaryPasswordEmail(user.getEmail(), tempPassword);
+    user.changePassword(passwordEncoder.encode(request.newPassword()));
+    emailVerificationRepository.deleteByEmailAndType(
+        request.email(), VerificationType.PASSWORD_RESET);
 
-    log.info("[AuthService] 임시 비밀번호 발급 완료 - userId: {}, email: {}", user.getId(), user.getEmail());
+    log.info("[AuthService] 비밀번호 변경 완료 - userId: {}, email: {}", user.getId(), user.getEmail());
+  }
+
+  @Transactional
+  public TokenResponse kakaoLogin(String code, HttpServletResponse response) {
+    log.info("[AuthService] 카카오 로그인 요청");
+
+    KakaoUserInfoResponse userInfo =
+        kakaoAuthService.getUserInfo(kakaoAuthService.exchangeCodeForToken(code).accessToken());
+
+    String socialId = userInfo.socialId();
+    User user =
+        userRepository
+            .findBySocialId(socialId)
+            .orElseGet(
+                () -> {
+                  log.info("[AuthService] 카카오 신규 회원 가입 - socialId: {}", socialId);
+                  return userRepository.save(
+                      User.ofKakao(
+                          socialId, userInfo.nickname(), userInfo.email(), userInfo.name()));
+                });
+
+    CustomUserDetails userDetails = new CustomUserDetails(user);
+    String accessToken =
+        jwtProvider.generateAccessToken(user.getEmail(), userDetails.getAuthorities());
+    String refreshToken = jwtProvider.generateRefreshToken(user.getEmail());
+
+    refreshTokenRepository
+        .findByMemberId(user.getId())
+        .ifPresentOrElse(
+            rt -> {
+              rt.rotate(refreshToken, jwtProperties.getRefreshExpiration());
+              log.info("[AuthService] 카카오 로그인 - 리프레시 토큰 갱신, userId: {}", user.getId());
+            },
+            () -> {
+              refreshTokenRepository.save(
+                  RefreshToken.create(
+                      user.getId(), refreshToken, jwtProperties.getRefreshExpiration()));
+              log.info("[AuthService] 카카오 로그인 - 리프레시 토큰 신규 발급, userId: {}", user.getId());
+            });
+
+    setAccessTokenCookie(response, accessToken);
+    setRefreshTokenCookie(response, refreshToken);
+    log.info("[AuthService] 카카오 로그인 완료 - userId: {}, email: {}", user.getId(), user.getEmail());
+    return new TokenResponse(accessToken);
   }
 
   private void setAccessTokenCookie(HttpServletResponse response, String token) {

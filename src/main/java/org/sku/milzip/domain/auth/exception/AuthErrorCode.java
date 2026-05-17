@@ -30,7 +30,8 @@ public enum AuthErrorCode implements BaseErrorCode {
   // 500 Internal Server Error
   EMAIL_SEND_FAILED("AUTH5001", "이메일 전송에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   EMAIL_AUTH_FAILED(
-      "AUTH5002", "메일 서버 인증에 실패했습니다. 서버 관리자에게 문의해 주세요.", HttpStatus.INTERNAL_SERVER_ERROR);
+      "AUTH5002", "메일 서버 인증에 실패했습니다. 서버 관리자에게 문의해 주세요.", HttpStatus.INTERNAL_SERVER_ERROR),
+  KAKAO_LOGIN_FAILED("AUTH5003", "카카오 로그인 처리 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
 
   private final String code;
   private final String message;

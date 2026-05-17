@@ -1,22 +1,28 @@
 package org.sku.milzip.domain.auth.controller;
 
+import java.io.IOException;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 import org.sku.milzip.domain.auth.dto.LoginRequest;
-import org.sku.milzip.domain.auth.dto.PasswordResetRequest;
+import org.sku.milzip.domain.auth.dto.PasswordChangeRequest;
 import org.sku.milzip.domain.auth.dto.SendVerificationEmailRequest;
 import org.sku.milzip.domain.auth.dto.SignUpRequest;
 import org.sku.milzip.domain.auth.dto.TokenResponse;
 import org.sku.milzip.domain.auth.dto.VerifyEmailRequest;
 import org.sku.milzip.domain.auth.entity.VerificationType;
 import org.sku.milzip.domain.auth.service.AuthService;
+import org.sku.milzip.domain.auth.service.KakaoAuthService;
 import org.sku.milzip.global.common.BaseResponse;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,6 +36,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
   private final AuthService authService;
+  private final KakaoAuthService kakaoAuthService;
 
   @Operation(
       summary = "[ 비회원 | 토큰 X | 이메일 인증 코드 발송 ]",
@@ -131,26 +138,76 @@ public class AuthController {
   }
 
   @Operation(
-      summary = "[ 비회원 | 토큰 X | 임시 비밀번호 발급 ]",
+      summary = "[ 비회원 | 토큰 X | 비밀번호 재설정 인증 코드 발송 ]",
       description =
           """
           **Purpose**
-          - 비밀번호 분실 시 임시 비밀번호를 이메일로 발송
-          - 로그인 후 반드시 비밀번호를 변경해야 합니다 (temporaryPassword: true)
+          - 비밀번호 재설정을 위한 이메일 인증 코드 발송
 
           **Parameters**
           - email: 가입 시 사용한 이메일
 
           **Returns**
-          - message: "임시 비밀번호가 이메일로 발송되었습니다."
+          - message: "인증 코드가 발송되었습니다."
+
+          **Note**
+          - 인증 코드는 6자리 숫자이며 **5분간** 유효합니다
+          - 코드 발송 후 반드시 `PATCH /api/auth/password-resets/verifications` 로 인증을 완료해야 합니다
+          """)
+  @PostMapping("/password-resets/verifications")
+  public BaseResponse<Void> sendPasswordResetVerification(
+      @Valid @RequestBody SendVerificationEmailRequest request) {
+    authService.sendVerificationEmail(request, VerificationType.PASSWORD_RESET);
+    return BaseResponse.success("인증 코드가 발송되었습니다.", null);
+  }
+
+  @Operation(
+      summary = "[ 비회원 | 토큰 X | 비밀번호 재설정 인증 코드 확인 ]",
+      description =
+          """
+          **Purpose**
+          - 비밀번호 재설정용 인증 코드 확인
+
+          **Parameters**
+          - email: 인증 코드를 수신한 이메일
+          - code: 6자리 숫자 인증 코드
+
+          **Returns**
+          - message: "이메일 인증이 완료되었습니다."
 
           **Error**
+          - AUTH4004: 코드 불일치
+          - AUTH4005: 코드 만료 (5분 초과)
+          """)
+  @PatchMapping("/password-resets/verifications")
+  public BaseResponse<Void> verifyPasswordResetCode(
+      @Valid @RequestBody VerifyEmailRequest request) {
+    authService.verifyEmail(request, VerificationType.PASSWORD_RESET);
+    return BaseResponse.success("이메일 인증이 완료되었습니다.", null);
+  }
+
+  @Operation(
+      summary = "[ 비회원 | 토큰 X | 비밀번호 변경 ]",
+      description =
+          """
+          **Purpose**
+          - 이메일 인증 완료 후 새 비밀번호로 변경
+
+          **Parameters**
+          - email: 인증이 완료된 이메일
+          - newPassword: 새 비밀번호 (8~20자, 영문·숫자·특수문자(!@#$%^&*) 각 1자 이상)
+
+          **Returns**
+          - message: "비밀번호가 변경되었습니다."
+
+          **Error**
+          - AUTH4003: 이메일 인증 미완료
           - AUTH4041: 존재하지 않는 이메일
           """)
-  @PostMapping("/password-resets")
-  public BaseResponse<Void> resetPassword(@Valid @RequestBody PasswordResetRequest request) {
-    authService.resetPassword(request);
-    return BaseResponse.success("임시 비밀번호가 이메일로 발송되었습니다.", null);
+  @PutMapping("/password-resets")
+  public BaseResponse<Void> changePassword(@Valid @RequestBody PasswordChangeRequest request) {
+    authService.changePassword(request);
+    return BaseResponse.success("비밀번호가 변경되었습니다.", null);
   }
 
   @Operation(
@@ -175,5 +232,46 @@ public class AuthController {
   public BaseResponse<TokenResponse> refreshTokens(
       HttpServletRequest request, HttpServletResponse response) {
     return BaseResponse.success(authService.reissueTokens(request, response));
+  }
+
+  @Operation(
+      summary = "[ 비회원 | 토큰 X | 카카오 로그인 페이지로 이동 ]",
+      description =
+          """
+          **Purpose**
+          - 카카오 OAuth 인증 페이지로 리다이렉트
+
+          **Returns**
+          - 카카오 로그인 화면으로 302 리다이렉트
+          """)
+  @GetMapping("/kakao")
+  public void kakaoLogin(HttpServletResponse response) throws IOException {
+    response.sendRedirect(kakaoAuthService.buildAuthorizationUrl());
+  }
+
+  @Operation(
+      summary = "[ 비회원 | 토큰 X | 카카오 로그인 콜백 ]",
+      description =
+          """
+          **Purpose**
+          - 카카오 인증 완료 후 콜백을 처리하여 JWT 발급
+          - 최초 로그인 시 자동으로 회원가입 후 로그인 처리
+
+          **Parameters**
+          - code: 카카오 인가 코드 (쿼리 파라미터, 카카오가 자동 전달)
+
+          **Returns**
+          - accessToken: Bearer 토큰 (쿠키 및 응답 바디)
+          - 프론트엔드 URL로 302 리다이렉트
+
+          **Error**
+          - AUTH5003: 카카오 API 호출 실패
+          """)
+  @GetMapping("/kakao/callback")
+  public void kakaoCallback(
+      @RequestParam String code, HttpServletRequest request, HttpServletResponse response)
+      throws IOException {
+    authService.kakaoLogin(code, response);
+    response.sendRedirect(kakaoAuthService.buildFrontendRedirectUrl());
   }
 }
