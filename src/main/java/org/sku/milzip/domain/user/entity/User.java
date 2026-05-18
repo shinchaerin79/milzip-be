@@ -60,11 +60,12 @@ public class User extends BaseTimeEntity {
 
   private LocalDateTime emailVerifiedAt;
 
-  public static User ofLocal(String email, String encodedPassword, String nickname) {
+  public static User ofLocal(String email, String encodedPassword, String nickname, String name) {
     User user = new User();
     user.email = email;
     user.password = encodedPassword;
     user.nickname = nickname;
+    user.name = name;
     user.role = UserRole.MEMBER;
     user.status = UserStatus.PENDING_EMAIL;
     user.authType = AuthType.LOCAL;

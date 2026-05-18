@@ -116,7 +116,10 @@ public class AuthService {
     User user =
         userRepository.save(
             User.ofLocal(
-                request.email(), passwordEncoder.encode(request.password()), request.nickname()));
+                request.email(),
+                passwordEncoder.encode(request.password()),
+                request.nickname(),
+                request.name()));
     user.activateEmail();
     emailVerificationRepository.deleteByEmailAndType(request.email(), VerificationType.SIGNUP);
 

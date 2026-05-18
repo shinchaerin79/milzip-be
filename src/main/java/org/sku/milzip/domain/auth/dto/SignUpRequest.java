@@ -17,4 +17,5 @@ public record SignUpRequest(
             message = "비밀번호는 영문, 숫자, 특수문자(!@#$%^&*)를 각 1자 이상 포함해야 합니다.")
         String password,
     @Schema(description = "닉네임 (2~20자)", example = "밀집이") @NotBlank @Size(min = 2, max = 20)
-        String nickname) {}
+        String nickname,
+    @Schema(description = "본명 (실명인증에 사용)", example = "홍길동") @NotBlank String name) {}
