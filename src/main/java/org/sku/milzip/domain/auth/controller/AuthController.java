@@ -6,12 +6,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
-import org.sku.milzip.domain.auth.dto.LoginRequest;
-import org.sku.milzip.domain.auth.dto.PasswordChangeRequest;
-import org.sku.milzip.domain.auth.dto.SendVerificationEmailRequest;
-import org.sku.milzip.domain.auth.dto.SignUpRequest;
-import org.sku.milzip.domain.auth.dto.TokenResponse;
-import org.sku.milzip.domain.auth.dto.VerifyEmailRequest;
+import org.sku.milzip.domain.auth.dto.request.LoginRequest;
+import org.sku.milzip.domain.auth.dto.request.PasswordChangeRequest;
+import org.sku.milzip.domain.auth.dto.request.SendVerificationEmailRequest;
+import org.sku.milzip.domain.auth.dto.request.SignUpRequest;
+import org.sku.milzip.domain.auth.dto.request.VerifyEmailRequest;
+import org.sku.milzip.domain.auth.dto.response.TokenResponse;
 import org.sku.milzip.domain.auth.entity.VerificationType;
 import org.sku.milzip.domain.auth.service.AuthService;
 import org.sku.milzip.domain.auth.service.KakaoAuthService;

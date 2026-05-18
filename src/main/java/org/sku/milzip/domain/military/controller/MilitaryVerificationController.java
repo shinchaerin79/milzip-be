@@ -2,7 +2,7 @@ package org.sku.milzip.domain.military.controller;
 
 import jakarta.validation.Valid;
 
-import org.sku.milzip.domain.military.dto.MilitaryVerificationRequest;
+import org.sku.milzip.domain.military.dto.request.MilitaryVerificationRequest;
 import org.sku.milzip.domain.military.service.MilitaryVerificationService;
 import org.sku.milzip.global.common.BaseResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

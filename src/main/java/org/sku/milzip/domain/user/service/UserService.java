@@ -3,7 +3,7 @@ package org.sku.milzip.domain.user.service;
 import java.util.List;
 
 import org.sku.milzip.domain.auth.exception.AuthErrorCode;
-import org.sku.milzip.domain.user.dto.UserResponse;
+import org.sku.milzip.domain.user.dto.response.UserResponse;
 import org.sku.milzip.domain.user.repository.UserRepository;
 import org.sku.milzip.global.exception.CustomException;
 import org.springframework.stereotype.Service;

@@ -2,7 +2,7 @@ package org.sku.milzip.domain.user.controller;
 
 import java.util.List;
 
-import org.sku.milzip.domain.user.dto.UserResponse;
+import org.sku.milzip.domain.user.dto.response.UserResponse;
 import org.sku.milzip.domain.user.service.UserService;
 import org.sku.milzip.global.common.BaseResponse;
 import org.springframework.security.access.prepost.PreAuthorize;

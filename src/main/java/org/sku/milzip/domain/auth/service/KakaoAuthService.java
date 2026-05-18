@@ -1,7 +1,7 @@
 package org.sku.milzip.domain.auth.service;
 
-import org.sku.milzip.domain.auth.dto.KakaoTokenResponse;
-import org.sku.milzip.domain.auth.dto.KakaoUserInfoResponse;
+import org.sku.milzip.domain.auth.dto.response.KakaoTokenResponse;
+import org.sku.milzip.domain.auth.dto.response.KakaoUserInfoResponse;
 import org.sku.milzip.domain.auth.exception.AuthErrorCode;
 import org.sku.milzip.global.config.properties.KakaoProperties;
 import org.sku.milzip.global.exception.CustomException;

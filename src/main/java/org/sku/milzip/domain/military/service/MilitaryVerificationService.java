@@ -1,6 +1,6 @@
 package org.sku.milzip.domain.military.service;
 
-import org.sku.milzip.domain.military.dto.MilitaryVerificationRequest;
+import org.sku.milzip.domain.military.dto.request.MilitaryVerificationRequest;
 import org.sku.milzip.domain.military.entity.MilitaryVerification;
 import org.sku.milzip.domain.military.exception.MilitaryErrorCode;
 import org.sku.milzip.domain.military.repository.MilitaryVerificationRepository;

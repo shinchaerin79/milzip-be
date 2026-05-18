@@ -6,13 +6,13 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.sku.milzip.domain.auth.dto.KakaoUserInfoResponse;
-import org.sku.milzip.domain.auth.dto.LoginRequest;
-import org.sku.milzip.domain.auth.dto.PasswordChangeRequest;
-import org.sku.milzip.domain.auth.dto.SendVerificationEmailRequest;
-import org.sku.milzip.domain.auth.dto.SignUpRequest;
-import org.sku.milzip.domain.auth.dto.TokenResponse;
-import org.sku.milzip.domain.auth.dto.VerifyEmailRequest;
+import org.sku.milzip.domain.auth.dto.request.LoginRequest;
+import org.sku.milzip.domain.auth.dto.request.PasswordChangeRequest;
+import org.sku.milzip.domain.auth.dto.request.SendVerificationEmailRequest;
+import org.sku.milzip.domain.auth.dto.request.SignUpRequest;
+import org.sku.milzip.domain.auth.dto.request.VerifyEmailRequest;
+import org.sku.milzip.domain.auth.dto.response.KakaoUserInfoResponse;
+import org.sku.milzip.domain.auth.dto.response.TokenResponse;
 import org.sku.milzip.domain.auth.entity.EmailVerification;
 import org.sku.milzip.domain.auth.entity.RefreshToken;
 import org.sku.milzip.domain.auth.entity.VerificationType;
@@ -258,7 +258,7 @@ public class AuthService {
     log.info("[AuthService] 카카오 로그인 요청");
 
     KakaoUserInfoResponse userInfo =
-        kakaoAuthService.getUserInfo(kakaoAuthService.exchangeCodeForToken(code).accessToken());
+        kakaoAuthService.getUserInfo(kakaoAuthService.exchangeCodeForToken(code).getAccessToken());
 
     String socialId = userInfo.socialId();
     User user =
