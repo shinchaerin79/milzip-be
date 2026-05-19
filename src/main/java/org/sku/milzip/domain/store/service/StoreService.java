@@ -11,6 +11,7 @@ import org.sku.milzip.domain.store.exception.StoreErrorCode;
 import org.sku.milzip.domain.store.repository.StoreRepository;
 import org.sku.milzip.global.common.PageResponse;
 import org.sku.milzip.global.exception.CustomException;
+import org.sku.milzip.global.util.GeoUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,8 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class StoreService {
-
-  private static final double EARTH_RADIUS_KM = 6371.0;
 
   private final StoreRepository storeRepository;
 
@@ -72,7 +71,8 @@ public class StoreService {
             .map(
                 s ->
                     StoreListItemResponse.from(
-                        s, calculateDistanceKm(lat, lng, s.getLatitude(), s.getLongitude())))
+                        s,
+                        GeoUtils.calculateDistanceKm(lat, lng, s.getLatitude(), s.getLongitude())))
             .sorted(Comparator.comparingDouble(r -> r.getDistanceKm()))
             .toList();
 
@@ -85,22 +85,7 @@ public class StoreService {
   }
 
   private Pageable buildPageable(int page, int size, String sortBy) {
-    Sort sort =
-        "discount".equals(sortBy)
-            ? Sort.by(Sort.Direction.DESC, "viewCount")
-            : Sort.by(Sort.Direction.DESC, "viewCount");
+    Sort sort = Sort.by(Sort.Direction.DESC, "viewCount");
     return PageRequest.of(page, size, sort);
-  }
-
-  private double calculateDistanceKm(double lat1, double lng1, double lat2, double lng2) {
-    double dLat = Math.toRadians(lat2 - lat1);
-    double dLng = Math.toRadians(lng2 - lng1);
-    double a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2)
-            + Math.cos(Math.toRadians(lat1))
-                * Math.cos(Math.toRadians(lat2))
-                * Math.sin(dLng / 2)
-                * Math.sin(dLng / 2);
-    return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 }
