@@ -35,17 +35,17 @@ public class StoreController {
           - page: 페이지 번호 (기본값 0)
           - size: 페이지 크기 (기본값 20)
           - category: 카테고리 필터 (FOOD / CAFE / LEISURE / ACCOMMODATION / ETC, 미입력 시 전체)
-          - sortBy: 정렬 기준 (discount=할인율순, distance=거리순, 미입력 시 조회수순)
-          - lat: 위도 (sortBy=distance 시 필수)
-          - lng: 경도 (sortBy=distance 시 필수)
+          - sortBy: 정렬 기준 (discount=할인율순, 미입력 시 조회수순) — lat/lng 입력 시 자동으로 거리순 적용
+          - lat: 위도 (입력 시 거리순 정렬로 자동 전환)
+          - lng: 경도 (입력 시 거리순 정렬로 자동 전환)
 
           **Returns**
           - content: 매장 목록 (id, name, category, address, phone, 위도/경도, 혜택 여부, 최대 할인율, 거리(km))
           - page / size / totalElements / totalPages / last
 
           **Note**
-          - sortBy=distance 사용 시 lat, lng 미입력이면 거리 계산이 불가하여 조회수순으로 대체됩니다
-          - 위도/경도 미등록 매장(약 600건)은 거리순 정렬 결과에서 제외됩니다
+          - lat/lng를 넘기면 sortBy 값에 관계없이 거리순으로 자동 전환됩니다
+          - 좌표가 없는 매장은 거리순 결과에서 제외됩니다 (카카오 enrichment 미완료 매장)
           """)
   @GetMapping
   public BaseResponse<PageResponse<StoreListItemResponse>> getStores(

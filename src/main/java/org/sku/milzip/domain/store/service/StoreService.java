@@ -33,7 +33,8 @@ public class StoreService {
   public PageResponse<StoreListItemResponse> getStores(
       StoreCategory category, int page, int size, String sortBy, Double lat, Double lng) {
 
-    if ("distance".equals(sortBy) && lat != null && lng != null) {
+    // lat/lng가 있으면 sortBy 값에 관계없이 거리순으로 정렬
+    if (lat != null && lng != null) {
       return getStoresSortedByDistance(category, page, size, lat, lng);
     }
 

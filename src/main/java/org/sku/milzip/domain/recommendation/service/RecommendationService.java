@@ -1,14 +1,24 @@
 package org.sku.milzip.domain.recommendation.service;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
+import org.sku.milzip.domain.recommendation.dto.request.AiRecommendationRequest;
+import org.sku.milzip.domain.recommendation.dto.response.AiRecommendationItemResponse;
+import org.sku.milzip.domain.recommendation.dto.response.CourseResponse;
 import org.sku.milzip.domain.recommendation.dto.response.QuickRecommendationResponse;
+import org.sku.milzip.domain.recommendation.repository.VectorStoreRepository;
 import org.sku.milzip.domain.store.entity.Store;
 import org.sku.milzip.domain.store.entity.StoreCategory;
 import org.sku.milzip.domain.store.repository.StoreRepository;
 import org.sku.milzip.global.common.PageResponse;
+import org.sku.milzip.global.openai.OpenAiService;
+import org.sku.milzip.global.openai.OpenAiService.AiRankResult;
 import org.sku.milzip.global.util.GeoUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,8 +34,11 @@ public class RecommendationService {
   private static final double WALKING_SPEED_KMH = 4.0;
   private static final double DRIVING_SPEED_KMH = 30.0;
   private static final int MAX_TRAVEL_MINUTES = 60;
+  private static final int MAX_GPT_RECOMMENDATIONS = 10;
 
   private final StoreRepository storeRepository;
+  private final VectorStoreRepository vectorStoreRepository;
+  private final OpenAiService openAiService;
 
   @Transactional(readOnly = true)
   public PageResponse<QuickRecommendationResponse> getQuickRecommendations(
@@ -90,6 +103,154 @@ public class RecommendationService {
           store, distanceKm, (int) Math.round(drivingMinutes), "차량");
     }
     return null;
+  }
+
+  // ==============================
+  // AI 맞춤 추천 (코스 형식)
+  // ==============================
+
+  @Transactional(readOnly = true)
+  public List<CourseResponse> getAiRecommendations(AiRecommendationRequest request) {
+    // 1. 쿼리 텍스트 구성 및 임베딩 생성
+    String queryText = buildQueryText(request);
+    log.debug("[RecommendationService] AI 추천 쿼리: {}", queryText);
+    List<Float> embedding = openAiService.getEmbedding(queryText);
+
+    // 2. 요청 카테고리 목록 (미입력 시 FOOD 기본)
+    List<StoreCategory> requiredCategories =
+        (request.getCategories() != null && !request.getCategories().isEmpty())
+            ? request.getCategories()
+            : List.of(StoreCategory.FOOD);
+
+    // category -> 유사도순 후보 매장 (거리 필터 적용)
+    Map<StoreCategory, List<Store>> candidatesByCategory = new LinkedHashMap<>();
+    for (StoreCategory cat : requiredCategories) {
+      List<Store> stores = vectorStoreRepository.findSimilarStoresByCategory(embedding, cat, 10);
+
+      // lat/lng 제공 시: 차량 60분 초과 매장 제외 (좌표 없는 매장도 제외)
+      if (request.getLat() != null && request.getLng() != null) {
+        stores =
+            stores.stream()
+                .filter(s -> s.getLatitude() != null && s.getLongitude() != null)
+                .filter(
+                    s -> {
+                      double distKm =
+                          GeoUtils.calculateDistanceKm(
+                              request.getLat(), request.getLng(),
+                              s.getLatitude(), s.getLongitude());
+                      return distKm / DRIVING_SPEED_KMH * 60 <= MAX_TRAVEL_MINUTES;
+                    })
+                .toList();
+      }
+
+      if (!stores.isEmpty()) candidatesByCategory.put(cat, stores);
+    }
+
+    if (candidatesByCategory.isEmpty()) {
+      log.info("[RecommendationService] AI 추천 후보 없음 (임베딩 미생성 또는 이동 가능 범위 내 매장 없음)");
+      return List.of();
+    }
+
+    // 3. 지역(시/도)별 코스 후보 구성: region -> {category -> 유사도 1순위 매장}
+    //    카테고리 순서(LinkedHashMap)를 유지해 코스 내 순서 보장
+    Map<String, Map<StoreCategory, Store>> regionCourseMap = new LinkedHashMap<>();
+    for (Map.Entry<StoreCategory, List<Store>> entry : candidatesByCategory.entrySet()) {
+      StoreCategory cat = entry.getKey();
+      for (Store store : entry.getValue()) {
+        String region = extractRegion(store.getAddress());
+        regionCourseMap
+            .computeIfAbsent(region, k -> new LinkedHashMap<>())
+            .putIfAbsent(cat, store); // 유사도 가장 높은 매장만 지역에 배정
+      }
+    }
+
+    // 완성도 높은 지역 우선 정렬 (필요 카테고리를 더 많이 가진 지역 → 앞), 최대 3 코스
+    List<Map.Entry<String, Map<StoreCategory, Store>>> sortedRegions =
+        regionCourseMap.entrySet().stream()
+            .filter(e -> !e.getValue().isEmpty())
+            .sorted((a, b) -> Integer.compare(b.getValue().size(), a.getValue().size()))
+            .limit(3)
+            .toList();
+
+    // 4. GPT 추천 이유 생성 (선택된 매장 전체)
+    List<Store> allSelected =
+        sortedRegions.stream().flatMap(e -> e.getValue().values().stream()).distinct().toList();
+
+    String companionLabel =
+        request.getCompanion() != null ? request.getCompanion().getLabel() : null;
+
+    Map<Long, String> reasonMap;
+    try {
+      List<AiRankResult> rankResults =
+          openAiService.rankStores(
+              request.getFreeText(), companionLabel, null, allSelected, allSelected.size());
+      reasonMap =
+          rankResults.stream()
+              .collect(Collectors.toMap(AiRankResult::storeId, AiRankResult::reason, (a, b) -> a));
+    } catch (Exception e) {
+      log.warn("[RecommendationService] GPT 이유 생성 실패, 기본값 사용", e);
+      reasonMap = Map.of();
+    }
+
+    // 5. 코스 응답 구성
+    List<CourseResponse> courses = new ArrayList<>();
+    int courseNum = 1;
+    for (Map.Entry<String, Map<StoreCategory, Store>> entry : sortedRegions) {
+      String region = entry.getKey();
+      List<AiRecommendationItemResponse> items = new ArrayList<>();
+
+      for (Store store : entry.getValue().values()) {
+        Double distanceKm = null;
+        Integer travelTimeMinutes = null;
+        String travelMode = null;
+
+        if (request.getLat() != null
+            && request.getLng() != null
+            && store.getLatitude() != null
+            && store.getLongitude() != null) {
+          distanceKm =
+              GeoUtils.calculateDistanceKm(
+                  request.getLat(), request.getLng(), store.getLatitude(), store.getLongitude());
+          double walkMin = distanceKm / WALKING_SPEED_KMH * 60;
+          double driveMin = distanceKm / DRIVING_SPEED_KMH * 60;
+          if (walkMin <= MAX_TRAVEL_MINUTES) {
+            travelTimeMinutes = (int) Math.round(walkMin);
+            travelMode = "도보";
+          } else if (driveMin <= MAX_TRAVEL_MINUTES) {
+            travelTimeMinutes = (int) Math.round(driveMin);
+            travelMode = "차량";
+          }
+        }
+
+        String reason = reasonMap.getOrDefault(store.getId(), "군장병 할인 혜택이 있는 매장입니다.");
+        items.add(
+            AiRecommendationItemResponse.of(
+                store, reason, distanceKm, travelTimeMinutes, travelMode));
+      }
+
+      courses.add(
+          CourseResponse.builder().courseNumber(courseNum++).region(region).stores(items).build());
+    }
+    return courses;
+  }
+
+  /** 주소에서 첫 번째 행정구역(시/도)을 추출합니다. */
+  private String extractRegion(String address) {
+    if (address == null || address.isBlank() || address.equalsIgnoreCase("nan")) {
+      return "기타";
+    }
+    return address.trim().split(" ")[0];
+  }
+
+  private String buildQueryText(AiRecommendationRequest request) {
+    StringBuilder sb = new StringBuilder(request.getFreeText());
+    if (request.getCompanion() != null) {
+      sb.append(" ").append(request.getCompanion().getLabel());
+    }
+    if (request.getCategories() != null && !request.getCategories().isEmpty()) {
+      request.getCategories().forEach(c -> sb.append(" ").append(c.name()));
+    }
+    return sb.toString().trim();
   }
 
   private Comparator<QuickRecommendationResponse> comparator(String sortBy) {
