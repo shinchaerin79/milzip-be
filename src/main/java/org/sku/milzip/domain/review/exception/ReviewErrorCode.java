@@ -20,7 +20,13 @@ public enum ReviewErrorCode implements BaseErrorCode {
   REVIEW_ALREADY_EXISTS("REV4091", "이미 해당 매장에 리뷰를 작성하셨습니다.", HttpStatus.CONFLICT),
 
   // 400 Bad Request
-  BENEFIT_STATUS_REQUIRED("REV4001", "군인 인증 사용자는 혜택 여부를 선택해야 합니다.", HttpStatus.BAD_REQUEST);
+  BENEFIT_STATUS_REQUIRED("REV4001", "군인 인증 사용자는 혜택 여부를 선택해야 합니다.", HttpStatus.BAD_REQUEST),
+
+  // 422 Unprocessable Entity
+  OCR_STORE_NAME_MISMATCH("REV4221", "영수증의 가게명이 일치하지 않습니다.", HttpStatus.UNPROCESSABLE_ENTITY),
+
+  // 500 Internal Server Error
+  OCR_API_ERROR("REV5001", "영수증 OCR 처리 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
 
   private final String code;
   private final String message;
