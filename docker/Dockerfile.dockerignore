@@ -1,0 +1,24 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.iws
+*.iml
+*.ipr
+
+# 로그
+logs/
+*.log
+
+# Git
+.git/
+.gitignore
+
+# 문서
+README.md
+
+# Docker 관련 (빌드에 불필요)
+docker/

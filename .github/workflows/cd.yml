@@ -1,0 +1,71 @@
+name: CD
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    environment: ENV_DEV
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GIT_ACTIONS_PAT }}
+          submodules: recursive
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build & Push
+        run: |
+          docker build -f ./docker/Dockerfile \
+            -t ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest \
+            -t ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO }}:${{ github.sha }} \
+            .
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO }}:${{ github.sha }}
+
+  copy:
+    name: Copy Files to Server
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ENV_DEV
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SCP docker directory
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "docker/"
+          target: "~/milzip-be"
+
+  deploy:
+    name: Deploy
+    needs: copy
+    runs-on: ubuntu-latest
+    environment: ENV_DEV
+    steps:
+      - name: SSH Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd ~/milzip-be/docker
+
+            printf "${{ secrets.ENV_DEV }}" > .env
+            echo "DOCKER_IMAGE=${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest" >> .env
+
+            docker compose pull
+            docker compose up -d --force-recreate
+            docker image prune -f
+
+            echo "✅ 배포 완료"
