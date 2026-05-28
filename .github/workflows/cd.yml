@@ -29,15 +29,15 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO }}:${{ github.sha }}
 
-  copy:
-    name: Copy Files to Server
+  deploy:
+    name: Deploy
     needs: build
     runs-on: ubuntu-latest
     environment: ENV_DEV
     steps:
       - uses: actions/checkout@v4
 
-      - name: SCP docker directory
+      - name: Copy docker directory to server
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -46,13 +46,7 @@ jobs:
           source: "docker/"
           target: "~/milzip-be"
 
-  deploy:
-    name: Deploy
-    needs: copy
-    runs-on: ubuntu-latest
-    environment: ENV_DEV
-    steps:
-      - name: SSH Deploy
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
