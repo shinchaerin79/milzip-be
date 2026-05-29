@@ -55,7 +55,7 @@ jobs:
           script: |
             cd ~/milzip-be/docker
 
-            printf "${{ secrets.ENV_DEV }}" > .env
+            printf "%s\n" "${{ secrets.ENV_DEV }}" > .env
             echo "DOCKER_IMAGE=${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest" >> .env
 
             docker compose pull
