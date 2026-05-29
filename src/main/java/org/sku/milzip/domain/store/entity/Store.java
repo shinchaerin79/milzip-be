@@ -17,6 +17,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
+import org.sku.milzip.domain.store.dto.request.StoreCreateRequest;
 import org.sku.milzip.global.common.BaseTimeEntity;
 
 import lombok.AccessLevel;
@@ -65,8 +66,42 @@ public class Store extends BaseTimeEntity {
 
   private LocalDateTime closeDate;
 
-  @OneToMany(mappedBy = "store", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  @OneToMany(
+      mappedBy = "store",
+      cascade = CascadeType.ALL,
+      fetch = FetchType.LAZY,
+      orphanRemoval = true)
   private List<StoreBenefit> benefits = new ArrayList<>();
+
+  public static Store create(StoreCreateRequest request) {
+    Store store = new Store();
+    store.name = request.getName();
+    store.category = request.getCategory();
+    store.address = request.getAddress();
+    store.latitude = request.getLatitude();
+    store.longitude = request.getLongitude();
+    store.phone = request.getPhone();
+    store.isMilitaryBenefit = request.isMilitaryBenefit();
+    store.isBenefitVerified = request.isBenefitVerified();
+    store.openTime = request.getOpenTime();
+    store.closeTime = request.getCloseTime();
+    store.closeDate = request.getCloseDate();
+    return store;
+  }
+
+  public void update(StoreCreateRequest request) {
+    this.name = request.getName();
+    this.category = request.getCategory();
+    this.address = request.getAddress();
+    this.latitude = request.getLatitude();
+    this.longitude = request.getLongitude();
+    this.phone = request.getPhone();
+    this.isMilitaryBenefit = request.isMilitaryBenefit();
+    this.isBenefitVerified = request.isBenefitVerified();
+    this.openTime = request.getOpenTime();
+    this.closeTime = request.getCloseTime();
+    this.closeDate = request.getCloseDate();
+  }
 
   public void incrementViewCount() {
     this.viewCount++;

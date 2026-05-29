@@ -1,18 +1,28 @@
 package org.sku.milzip.domain.store.controller;
 
+import jakarta.validation.Valid;
+
+import org.sku.milzip.domain.store.dto.request.StoreCreateRequest;
 import org.sku.milzip.domain.store.dto.response.StoreDetailResponse;
 import org.sku.milzip.domain.store.dto.response.StoreListItemResponse;
 import org.sku.milzip.domain.store.entity.StoreCategory;
 import org.sku.milzip.domain.store.service.StoreService;
 import org.sku.milzip.global.common.BaseResponse;
 import org.sku.milzip.global.common.PageResponse;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
@@ -56,6 +66,82 @@ public class StoreController {
       @RequestParam(required = false) Double lat,
       @RequestParam(required = false) Double lng) {
     return BaseResponse.success(storeService.getStores(category, page, size, sortBy, lat, lng));
+  }
+
+  @Operation(
+      summary = "[ 전체 | 토큰 X | 조회수 기준 BEST 매장 단건 조회 ]",
+      description =
+          """
+          **Purpose**
+          - 전체 매장 중 조회수(viewCount)가 가장 높은 매장 1개를 반환합니다.
+
+          **Error**
+          - STO4041: 등록된 매장이 없는 경우
+          """)
+  @GetMapping("/best")
+  public BaseResponse<StoreDetailResponse> getBestStore() {
+    return BaseResponse.success(storeService.getBestStore());
+  }
+
+  @Operation(
+      summary = "[ 관리자 | 토큰 O | 매장 등록 ]",
+      security = @SecurityRequirement(name = "bearerAuth"),
+      description =
+          """
+          **Purpose**
+          - 관리자가 새로운 매장을 등록합니다.
+
+          **Error**
+          - AUTH4011: 토큰 미포함 또는 만료
+          - G003: 권한 없음 (403)
+          """)
+  @PostMapping
+  @PreAuthorize("hasRole('ADMIN')")
+  public BaseResponse<StoreDetailResponse> createStore(
+      @Valid @RequestBody StoreCreateRequest request) {
+    return BaseResponse.success(storeService.createStore(request));
+  }
+
+  @Operation(
+      summary = "[ 관리자 | 토큰 O | 매장 수정 ]",
+      security = @SecurityRequirement(name = "bearerAuth"),
+      description =
+          """
+          **Purpose**
+          - 관리자가 기존 매장 정보를 수정합니다.
+          - benefits 목록은 전체 교체(replace) 방식으로 동작합니다.
+
+          **Error**
+          - STO4041: 존재하지 않는 매장
+          - AUTH4011: 토큰 미포함 또는 만료
+          - G003: 권한 없음 (403)
+          """)
+  @PutMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
+  public BaseResponse<StoreDetailResponse> updateStore(
+      @Parameter(description = "매장 ID") @PathVariable Long id,
+      @Valid @RequestBody StoreCreateRequest request) {
+    return BaseResponse.success(storeService.updateStore(id, request));
+  }
+
+  @Operation(
+      summary = "[ 관리자 | 토큰 O | 매장 삭제 ]",
+      security = @SecurityRequirement(name = "bearerAuth"),
+      description =
+          """
+          **Purpose**
+          - 관리자가 매장을 삭제합니다. 연관된 혜택 정보도 함께 삭제됩니다.
+
+          **Error**
+          - STO4041: 존재하지 않는 매장
+          - AUTH4011: 토큰 미포함 또는 만료
+          - G003: 권한 없음 (403)
+          """)
+  @DeleteMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
+  public BaseResponse<Void> deleteStore(@Parameter(description = "매장 ID") @PathVariable Long id) {
+    storeService.deleteStore(id);
+    return BaseResponse.success(null);
   }
 
   @Operation(

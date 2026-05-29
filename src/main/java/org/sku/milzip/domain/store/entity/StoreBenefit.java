@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import org.sku.milzip.domain.store.dto.request.StoreBenefitRequest;
 import org.sku.milzip.global.common.BaseTimeEntity;
 
 import lombok.AccessLevel;
@@ -37,4 +38,13 @@ public class StoreBenefit extends BaseTimeEntity {
 
   @Column(length = 255)
   private String conditionText;
+
+  public static StoreBenefit create(Store store, StoreBenefitRequest request) {
+    StoreBenefit benefit = new StoreBenefit();
+    benefit.store = store;
+    benefit.description = request.getDescription();
+    benefit.discountRate = request.getDiscountRate();
+    benefit.conditionText = request.getConditionText();
+    return benefit;
+  }
 }

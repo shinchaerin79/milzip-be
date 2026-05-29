@@ -3,9 +3,12 @@ package org.sku.milzip.domain.store.service;
 import java.util.Comparator;
 import java.util.List;
 
+import org.sku.milzip.domain.store.dto.request.StoreBenefitRequest;
+import org.sku.milzip.domain.store.dto.request.StoreCreateRequest;
 import org.sku.milzip.domain.store.dto.response.StoreDetailResponse;
 import org.sku.milzip.domain.store.dto.response.StoreListItemResponse;
 import org.sku.milzip.domain.store.entity.Store;
+import org.sku.milzip.domain.store.entity.StoreBenefit;
 import org.sku.milzip.domain.store.entity.StoreCategory;
 import org.sku.milzip.domain.store.exception.StoreErrorCode;
 import org.sku.milzip.domain.store.repository.StoreRepository;
@@ -83,6 +86,61 @@ public class StoreService {
         start >= sorted.size() ? List.of() : sorted.subList(start, end);
 
     return PageResponse.of(content, page, size, sorted.size());
+  }
+
+  @Transactional(readOnly = true)
+  public StoreDetailResponse getBestStore() {
+    List<Store> stores = storeRepository.findTopByViewCount(PageRequest.of(0, 1));
+    if (stores.isEmpty()) {
+      throw new CustomException(StoreErrorCode.STORE_NOT_FOUND);
+    }
+    return StoreDetailResponse.from(stores.get(0));
+  }
+
+  @Transactional
+  public StoreDetailResponse createStore(StoreCreateRequest request) {
+    if (storeRepository.existsByNameAndAddress(request.getName(), request.getAddress())) {
+      throw new CustomException(StoreErrorCode.STORE_ALREADY_EXISTS);
+    }
+
+    Store store = Store.create(request);
+    storeRepository.save(store);
+
+    if (request.getBenefits() != null) {
+      for (StoreBenefitRequest benefitRequest : request.getBenefits()) {
+        store.getBenefits().add(StoreBenefit.create(store, benefitRequest));
+      }
+    }
+
+    return StoreDetailResponse.from(store);
+  }
+
+  @Transactional
+  public StoreDetailResponse updateStore(Long id, StoreCreateRequest request) {
+    Store store =
+        storeRepository
+            .findWithBenefitsById(id)
+            .orElseThrow(() -> new CustomException(StoreErrorCode.STORE_NOT_FOUND));
+
+    store.update(request);
+    store.getBenefits().clear();
+
+    if (request.getBenefits() != null) {
+      for (StoreBenefitRequest benefitRequest : request.getBenefits()) {
+        store.getBenefits().add(StoreBenefit.create(store, benefitRequest));
+      }
+    }
+
+    return StoreDetailResponse.from(store);
+  }
+
+  @Transactional
+  public void deleteStore(Long id) {
+    Store store =
+        storeRepository
+            .findById(id)
+            .orElseThrow(() -> new CustomException(StoreErrorCode.STORE_NOT_FOUND));
+    storeRepository.delete(store);
   }
 
   private Pageable buildPageable(int page, int size, String sortBy) {

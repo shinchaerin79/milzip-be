@@ -54,4 +54,9 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
 
   @Query("SELECT DISTINCT s FROM Store s LEFT JOIN FETCH s.benefits WHERE s.id IN :ids")
   List<Store> findAllByIdWithBenefits(@Param("ids") List<Long> ids);
+
+  @Query("SELECT s FROM Store s LEFT JOIN FETCH s.benefits ORDER BY s.viewCount DESC")
+  List<Store> findTopByViewCount(Pageable pageable);
+
+  boolean existsByNameAndAddress(String name, String address);
 }
