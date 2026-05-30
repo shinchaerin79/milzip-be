@@ -33,6 +33,25 @@ public class ReviewService {
   private final StoreRepository storeRepository;
   private final UserRepository userRepository;
 
+  /** 리뷰 단건 조회 */
+  @Transactional(readOnly = true)
+  public ReviewResponse getReview(Long storeId, Long reviewId) {
+    validateStore(storeId);
+    return reviewRepository
+        .findByStoreIdAndId(storeId, reviewId)
+        .map(ReviewResponse::from)
+        .orElseThrow(() -> new CustomException(ReviewErrorCode.REVIEW_NOT_FOUND));
+  }
+
+  /** 내 리뷰 목록 조회 */
+  @Transactional(readOnly = true)
+  public PageResponse<ReviewResponse> getMyReviews(String email, int page, int size) {
+    User user = getUser(email);
+    Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+    return PageResponse.from(
+        reviewRepository.findByUserId(user.getId(), pageable).map(ReviewResponse::from));
+  }
+
   /** 매장 리뷰 목록 조회 (VISIBLE 상태만, 최신순) */
   @Transactional(readOnly = true)
   public PageResponse<ReviewResponse> getReviews(Long storeId, int page, int size) {
@@ -44,13 +63,16 @@ public class ReviewService {
             .map(ReviewResponse::from));
   }
 
-  /** 리뷰 작성 (매장당 1인 1개) */
+  /** 리뷰 작성 */
   @Transactional
   public ReviewResponse createReview(Long storeId, String email, ReviewCreateRequest request) {
     Store store = validateStore(storeId);
     User user = getUser(email);
 
-    if (reviewRepository.existsByStoreIdAndUserId(storeId, user.getId())) {
+    // 같은 영수증으로 중복 작성 방지
+    String receiptIdentifier = request.getReceiptIdentifier();
+    if (receiptIdentifier != null
+        && reviewRepository.existsByReceiptIdentifier(receiptIdentifier)) {
       throw new CustomException(ReviewErrorCode.REVIEW_ALREADY_EXISTS);
     }
 
@@ -59,22 +81,8 @@ public class ReviewService {
       throw new CustomException(ReviewErrorCode.BENEFIT_STATUS_REQUIRED);
     }
 
-    // MEMBER(일반 유저)인 경우 benefitStatus 무시 → null로 저장
-    ReviewCreateRequest sanitized =
-        user.getRole() == UserRole.SOLDIER
-            ? request
-            : ReviewCreateRequest.builder()
-                .rating(request.getRating())
-                .benefitStatus(null)
-                .visitType(request.getVisitType())
-                .waitTime(request.getWaitTime())
-                .visitPurpose(request.getVisitPurpose())
-                .visitWith(request.getVisitWith())
-                .goodPoints(request.getGoodPoints())
-                .content(request.getContent())
-                .build();
-
-    return ReviewResponse.from(reviewRepository.save(Review.create(store, user, sanitized)));
+    return ReviewResponse.from(
+        reviewRepository.save(Review.create(store, user, sanitize(user, request))));
   }
 
   /** 리뷰 수정 (본인만) */
@@ -94,21 +102,7 @@ public class ReviewService {
       throw new CustomException(ReviewErrorCode.BENEFIT_STATUS_REQUIRED);
     }
 
-    ReviewCreateRequest sanitized =
-        user.getRole() == UserRole.SOLDIER
-            ? request
-            : ReviewCreateRequest.builder()
-                .rating(request.getRating())
-                .benefitStatus(null)
-                .visitType(request.getVisitType())
-                .waitTime(request.getWaitTime())
-                .visitPurpose(request.getVisitPurpose())
-                .visitWith(request.getVisitWith())
-                .goodPoints(request.getGoodPoints())
-                .content(request.getContent())
-                .build();
-
-    review.update(sanitized);
+    review.update(sanitize(user, request));
     return ReviewResponse.from(review);
   }
 
@@ -136,9 +130,22 @@ public class ReviewService {
     return ReviewResponse.from(review);
   }
 
-  // ==============================
-  // Private helpers
-  // ==============================
+  // MEMBER인 경우 benefitStatus 무시 (null 처리)
+  private ReviewCreateRequest sanitize(User user, ReviewCreateRequest request) {
+    if (user.getRole() == UserRole.SOLDIER) {
+      return request;
+    }
+    return ReviewCreateRequest.builder()
+        .rating(request.getRating())
+        .benefitStatus(null)
+        .visitType(request.getVisitType())
+        .waitTime(request.getWaitTime())
+        .visitPurpose(request.getVisitPurpose())
+        .visitWith(request.getVisitWith())
+        .goodPoints(request.getGoodPoints())
+        .content(request.getContent())
+        .build();
+  }
 
   private Store validateStore(Long storeId) {
     return storeRepository

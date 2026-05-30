@@ -81,6 +81,9 @@ public class Review extends BaseTimeEntity {
   @Column(nullable = false)
   private ReviewStatus status;
 
+  @Column(unique = true)
+  private String receiptIdentifier; // 영수증 중복 방지용 식별자 (OCR 연동 시 사용)
+
   public static Review create(Store store, User user, ReviewCreateRequest request) {
     Review review = new Review();
     review.store = store;
@@ -94,6 +97,7 @@ public class Review extends BaseTimeEntity {
     review.goodPoints = request.getGoodPoints();
     review.content = request.getContent();
     review.status = ReviewStatus.VISIBLE;
+    review.receiptIdentifier = request.getReceiptIdentifier();
     return review;
   }
 

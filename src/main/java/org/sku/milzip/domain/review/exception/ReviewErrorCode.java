@@ -17,7 +17,7 @@ public enum ReviewErrorCode implements BaseErrorCode {
   REVIEW_FORBIDDEN("REV4031", "리뷰 수정/삭제 권한이 없습니다.", HttpStatus.FORBIDDEN),
 
   // 409 Conflict
-  REVIEW_ALREADY_EXISTS("REV4091", "이미 해당 매장에 리뷰를 작성하셨습니다.", HttpStatus.CONFLICT),
+  REVIEW_ALREADY_EXISTS("REV4091", "이미 해당 영수증으로 리뷰를 작성하셨습니다.", HttpStatus.CONFLICT),
 
   // 400 Bad Request
   BENEFIT_STATUS_REQUIRED("REV4001", "군인 인증 사용자는 혜택 여부를 선택해야 합니다.", HttpStatus.BAD_REQUEST),

@@ -84,4 +84,7 @@ public class ReviewCreateRequest {
   @Schema(description = "텍스트 리뷰 (선택)", example = "군장병 할인이 잘 적용되고 음식도 맛있었어요!")
   @Size(max = 500, message = "리뷰는 500자 이내로 작성해주세요.")
   private String content;
+
+  @Schema(description = "영수증 식별자 (OCR 검증 후 발급, 선택)", example = "RCPT-20250528-abc123")
+  private String receiptIdentifier;
 }

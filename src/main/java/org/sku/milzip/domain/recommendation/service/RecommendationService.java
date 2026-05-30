@@ -105,9 +105,7 @@ public class RecommendationService {
     return null;
   }
 
-  // ==============================
   // AI 맞춤 추천 (코스 형식)
-  // ==============================
 
   @Transactional(readOnly = true)
   public List<CourseResponse> getAiRecommendations(AiRecommendationRequest request) {

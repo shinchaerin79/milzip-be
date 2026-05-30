@@ -85,6 +85,24 @@ public class ReviewController {
   }
 
   @Operation(
+      summary = "[ 전체 | 토큰 X | 매장 리뷰 단건 조회 ]",
+      description =
+          """
+          **Purpose**
+          - 특정 매장의 리뷰 상세 정보를 조회합니다.
+
+          **Error**
+          - STO4041: 존재하지 않는 매장
+          - REV4041: 존재하지 않는 리뷰
+          """)
+  @GetMapping("/{reviewId}")
+  public BaseResponse<ReviewResponse> getReview(
+      @Parameter(description = "매장 ID") @PathVariable Long storeId,
+      @Parameter(description = "리뷰 ID") @PathVariable Long reviewId) {
+    return BaseResponse.success(reviewService.getReview(storeId, reviewId));
+  }
+
+  @Operation(
       summary = "[ 전체 | 토큰 X | 매장 리뷰 목록 조회 ]",
       description =
           """

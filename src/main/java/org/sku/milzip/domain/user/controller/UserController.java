@@ -2,16 +2,24 @@ package org.sku.milzip.domain.user.controller;
 
 import java.util.List;
 
+import org.sku.milzip.domain.review.dto.response.ReviewResponse;
+import org.sku.milzip.domain.user.dto.response.FavoriteResponse;
 import org.sku.milzip.domain.user.dto.response.UserResponse;
 import org.sku.milzip.domain.user.service.UserService;
 import org.sku.milzip.global.common.BaseResponse;
+import org.sku.milzip.global.common.PageResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -73,5 +81,55 @@ public class UserController {
   @PreAuthorize("hasRole('ADMIN')")
   public BaseResponse<List<UserResponse>> getAllUsers() {
     return BaseResponse.success(userService.getAllUsers());
+  }
+
+  // 즐겨찾기
+
+  @Operation(
+      summary = "[ 사용자 | 토큰 O | 즐겨찾기 매장 목록 조회 ]",
+      security = @SecurityRequirement(name = "bearerAuth"))
+  @GetMapping("/favorites")
+  @PreAuthorize("isAuthenticated()")
+  public BaseResponse<List<FavoriteResponse>> getFavorites(@AuthenticationPrincipal String email) {
+    return BaseResponse.success(userService.getFavorites(email));
+  }
+
+  @Operation(
+      summary = "[ 사용자 | 토큰 O | 즐겨찾기 매장 추가 ]",
+      security = @SecurityRequirement(name = "bearerAuth"),
+      description = "**Error**\n- STO4041: 존재하지 않는 매장\n- USR4091: 이미 즐겨찾기에 추가된 매장")
+  @PostMapping("/favorites/{storeId}")
+  @PreAuthorize("isAuthenticated()")
+  public BaseResponse<FavoriteResponse> addFavorite(
+      @AuthenticationPrincipal String email,
+      @Parameter(description = "매장 ID") @PathVariable Long storeId) {
+    return BaseResponse.success(userService.addFavorite(email, storeId));
+  }
+
+  @Operation(
+      summary = "[ 사용자 | 토큰 O | 즐겨찾기 매장 해제 ]",
+      security = @SecurityRequirement(name = "bearerAuth"),
+      description = "**Error**\n- USR4041: 즐겨찾기 내역 없음")
+  @DeleteMapping("/favorites/{storeId}")
+  @PreAuthorize("isAuthenticated()")
+  public BaseResponse<Void> removeFavorite(
+      @AuthenticationPrincipal String email,
+      @Parameter(description = "매장 ID") @PathVariable Long storeId) {
+    userService.removeFavorite(email, storeId);
+    return BaseResponse.success(null);
+  }
+
+  // 내 리뷰
+
+  @Operation(
+      summary = "[ 사용자 | 토큰 O | 내 리뷰 목록 조회 ]",
+      security = @SecurityRequirement(name = "bearerAuth"))
+  @GetMapping("/reviews")
+  @PreAuthorize("isAuthenticated()")
+  public BaseResponse<PageResponse<ReviewResponse>> getMyReviews(
+      @AuthenticationPrincipal String email,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "10") int size) {
+    return BaseResponse.success(userService.getMyReviews(email, page, size));
   }
 }

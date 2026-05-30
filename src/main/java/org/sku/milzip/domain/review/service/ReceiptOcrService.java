@@ -74,9 +74,7 @@ public class ReceiptOcrService {
         .build();
   }
 
-  // ==============================
   // Private helpers
-  // ==============================
 
   /**
    * Naver Clova OCR API를 호출하여 영수증 전체 텍스트를 반환합니다.
