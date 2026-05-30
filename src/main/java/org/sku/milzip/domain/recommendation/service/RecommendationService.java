@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import org.sku.milzip.domain.recommendation.dto.request.AiRecommendationRequest;
 import org.sku.milzip.domain.recommendation.dto.response.AiRecommendationItemResponse;
+import org.sku.milzip.domain.recommendation.dto.response.AiRecommendationResponse;
 import org.sku.milzip.domain.recommendation.dto.response.CourseResponse;
 import org.sku.milzip.domain.recommendation.dto.response.QuickRecommendationResponse;
 import org.sku.milzip.domain.recommendation.repository.VectorStoreRepository;
@@ -17,6 +18,7 @@ import org.sku.milzip.domain.store.entity.Store;
 import org.sku.milzip.domain.store.entity.StoreCategory;
 import org.sku.milzip.domain.store.repository.StoreRepository;
 import org.sku.milzip.global.common.PageResponse;
+import org.sku.milzip.global.kakao.KakaoMobilityService;
 import org.sku.milzip.global.openai.OpenAiService;
 import org.sku.milzip.global.openai.OpenAiService.AiRankResult;
 import org.sku.milzip.global.util.GeoUtils;
@@ -33,12 +35,15 @@ public class RecommendationService {
 
   private static final double WALKING_SPEED_KMH = 4.0;
   private static final double DRIVING_SPEED_KMH = 30.0;
-  private static final int MAX_TRAVEL_MINUTES = 60;
+  private static final double ROAD_DISTANCE_FACTOR = 1.3; // 직선 거리 → 실제 도보 거리 보정
+  private static final int MAX_WALKING_MINUTES = 30;
+  private static final int MAX_DRIVING_MINUTES = 60;
   private static final int MAX_GPT_RECOMMENDATIONS = 10;
 
   private final StoreRepository storeRepository;
   private final VectorStoreRepository vectorStoreRepository;
   private final OpenAiService openAiService;
+  private final KakaoMobilityService kakaoMobilityService;
 
   @Transactional(readOnly = true)
   public PageResponse<QuickRecommendationResponse> getQuickRecommendations(
@@ -94,11 +99,11 @@ public class RecommendationService {
     double walkingMinutes = distanceKm / WALKING_SPEED_KMH * 60;
     double drivingMinutes = distanceKm / DRIVING_SPEED_KMH * 60;
 
-    if (walkingMinutes <= MAX_TRAVEL_MINUTES) {
+    if (walkingMinutes <= MAX_WALKING_MINUTES) {
       return QuickRecommendationResponse.from(
           store, distanceKm, (int) Math.round(walkingMinutes), "도보");
     }
-    if (drivingMinutes <= MAX_TRAVEL_MINUTES) {
+    if (drivingMinutes <= MAX_DRIVING_MINUTES) {
       return QuickRecommendationResponse.from(
           store, distanceKm, (int) Math.round(drivingMinutes), "차량");
     }
@@ -108,7 +113,7 @@ public class RecommendationService {
   // AI 맞춤 추천 (코스 형식)
 
   @Transactional(readOnly = true)
-  public List<CourseResponse> getAiRecommendations(AiRecommendationRequest request) {
+  public AiRecommendationResponse getAiRecommendations(AiRecommendationRequest request) {
     // 1. 쿼리 텍스트 구성 및 임베딩 생성
     String queryText = buildQueryText(request);
     log.debug("[RecommendationService] AI 추천 쿼리: {}", queryText);
@@ -136,7 +141,7 @@ public class RecommendationService {
                           GeoUtils.calculateDistanceKm(
                               request.getLat(), request.getLng(),
                               s.getLatitude(), s.getLongitude());
-                      return distKm / DRIVING_SPEED_KMH * 60 <= MAX_TRAVEL_MINUTES;
+                      return distKm / DRIVING_SPEED_KMH * 60 <= MAX_DRIVING_MINUTES;
                     })
                 .toList();
       }
@@ -144,9 +149,15 @@ public class RecommendationService {
       if (!stores.isEmpty()) candidatesByCategory.put(cat, stores);
     }
 
+    List<StoreCategory> missingCategories =
+        requiredCategories.stream().filter(cat -> !candidatesByCategory.containsKey(cat)).toList();
+
     if (candidatesByCategory.isEmpty()) {
       log.info("[RecommendationService] AI 추천 후보 없음 (임베딩 미생성 또는 이동 가능 범위 내 매장 없음)");
-      return List.of();
+      return AiRecommendationResponse.builder()
+          .courses(List.of())
+          .missingCategories(missingCategories)
+          .build();
     }
 
     // 3. 지역(시/도)별 코스 후보 구성: region -> {category -> 유사도 1순위 매장}
@@ -206,16 +217,34 @@ public class RecommendationService {
             && request.getLng() != null
             && store.getLatitude() != null
             && store.getLongitude() != null) {
-          distanceKm =
+
+          double straightKm =
               GeoUtils.calculateDistanceKm(
                   request.getLat(), request.getLng(), store.getLatitude(), store.getLongitude());
-          double walkMin = distanceKm / WALKING_SPEED_KMH * 60;
-          double driveMin = distanceKm / DRIVING_SPEED_KMH * 60;
-          if (walkMin <= MAX_TRAVEL_MINUTES) {
+
+          // 도보 가능 범위 (직선 × 1.3 보정)
+          double walkingKm = straightKm * ROAD_DISTANCE_FACTOR;
+          double walkMin = walkingKm / WALKING_SPEED_KMH * 60;
+
+          if (walkMin <= MAX_WALKING_MINUTES) {
+            distanceKm = walkingKm;
             travelTimeMinutes = (int) Math.round(walkMin);
             travelMode = "도보";
-          } else if (driveMin <= MAX_TRAVEL_MINUTES) {
-            travelTimeMinutes = (int) Math.round(driveMin);
+          } else {
+            // 차량: Kakao Mobility API (실패 시 직선 거리 fallback)
+            var route =
+                kakaoMobilityService.getDrivingRoute(
+                    request.getLat(), request.getLng(),
+                    store.getLatitude(), store.getLongitude());
+
+            if (route.isPresent()) {
+              distanceKm = route.get().distanceKm();
+              int driveSec = route.get().durationSeconds();
+              travelTimeMinutes = (int) Math.round(driveSec / 60.0);
+            } else {
+              distanceKm = straightKm;
+              travelTimeMinutes = (int) Math.round(straightKm / DRIVING_SPEED_KMH * 60);
+            }
             travelMode = "차량";
           }
         }
@@ -229,7 +258,10 @@ public class RecommendationService {
       courses.add(
           CourseResponse.builder().courseNumber(courseNum++).region(region).stores(items).build());
     }
-    return courses;
+    return AiRecommendationResponse.builder()
+        .courses(courses)
+        .missingCategories(missingCategories)
+        .build();
   }
 
   /** 주소에서 첫 번째 행정구역(시/도)을 추출합니다. */

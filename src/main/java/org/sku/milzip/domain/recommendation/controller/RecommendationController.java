@@ -1,11 +1,9 @@
 package org.sku.milzip.domain.recommendation.controller;
 
-import java.util.List;
-
 import jakarta.validation.Valid;
 
 import org.sku.milzip.domain.recommendation.dto.request.AiRecommendationRequest;
-import org.sku.milzip.domain.recommendation.dto.response.CourseResponse;
+import org.sku.milzip.domain.recommendation.dto.response.AiRecommendationResponse;
 import org.sku.milzip.domain.recommendation.dto.response.QuickRecommendationResponse;
 import org.sku.milzip.domain.recommendation.service.RecommendationService;
 import org.sku.milzip.domain.store.entity.StoreCategory;
@@ -112,7 +110,7 @@ public class RecommendationController {
           - `domain/store/entity/StoreCategory.java`
           """)
   @PostMapping("/ai")
-  public BaseResponse<List<CourseResponse>> getAiRecommendations(
+  public BaseResponse<AiRecommendationResponse> getAiRecommendations(
       @Valid @RequestBody AiRecommendationRequest request) {
     return BaseResponse.success(recommendationService.getAiRecommendations(request));
   }
