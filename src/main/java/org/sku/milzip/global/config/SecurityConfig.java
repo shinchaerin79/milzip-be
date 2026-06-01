@@ -24,9 +24,10 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
   private static final String[] PUBLIC_URLS = {
-    "/api/auth/**",
-    "/api/stores/**",
-    "/api/recommendations/**",
+    "/auth/**",
+    "/stores/**",
+    "/recommendations/**",
+    "/benefits/**",
     "/v3/api-docs/**",
     "/swagger-ui/**",
     "/swagger-ui.html",

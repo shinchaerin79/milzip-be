@@ -47,7 +47,7 @@ import lombok.RequiredArgsConstructor;
 @Tag(name = "Review", description = "매장 리뷰 API")
 @Validated
 @RestController
-@RequestMapping("/api/stores/{storeId}/reviews")
+@RequestMapping("/stores/{storeId}/reviews")
 @RequiredArgsConstructor
 public class ReviewController {
 

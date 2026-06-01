@@ -23,7 +23,7 @@ import lombok.RequiredArgsConstructor;
 
 @Tag(name = "Recommendation", description = "추천 API")
 @RestController
-@RequestMapping("/api/recommendations")
+@RequestMapping("/recommendations")
 @RequiredArgsConstructor
 public class RecommendationController {
 

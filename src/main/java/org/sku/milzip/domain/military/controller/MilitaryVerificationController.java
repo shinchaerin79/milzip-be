@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 
 @Tag(name = "Military", description = "군인 인증 API")
 @RestController
-@RequestMapping("/api/military")
+@RequestMapping("/military")
 @RequiredArgsConstructor
 public class MilitaryVerificationController {
 
