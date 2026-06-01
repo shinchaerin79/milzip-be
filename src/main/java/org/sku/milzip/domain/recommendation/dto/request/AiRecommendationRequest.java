@@ -31,9 +31,9 @@ public class AiRecommendationRequest {
   @NotBlank(message = "요청 내용을 입력해주세요.")
   private String freeText;
 
-  @Schema(description = "현재 위치 위도 (입력 시 거리 정보 포함)", example = "37.5665")
+  @Schema(description = "현재 위치 위도 (입력 시 거리 정보 포함)", example = "37.89257701967812")
   private Double lat;
 
-  @Schema(description = "현재 위치 경도 (입력 시 거리 정보 포함)", example = "126.9780")
+  @Schema(description = "현재 위치 경도 (입력 시 거리 정보 포함)", example = "127.19789570920469")
   private Double lng;
 }

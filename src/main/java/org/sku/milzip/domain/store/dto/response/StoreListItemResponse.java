@@ -1,9 +1,12 @@
 package org.sku.milzip.domain.store.dto.response;
 
 import java.time.LocalTime;
+import java.util.Comparator;
+import java.util.List;
 
 import org.sku.milzip.domain.store.entity.Store;
 import org.sku.milzip.domain.store.entity.StoreCategory;
+import org.sku.milzip.domain.store.entity.StoreImage;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -26,10 +29,10 @@ public class StoreListItemResponse {
   @Schema(description = "주소", example = "경기도 포천시 신북면 아트밸리로 42")
   private String address;
 
-  @Schema(description = "위도", example = "37.9330471")
+  @Schema(description = "위도", example = "37.89257701967812")
   private Double latitude;
 
-  @Schema(description = "경도", example = "127.2311818")
+  @Schema(description = "경도", example = "127.19789570920469")
   private Double longitude;
 
   @Schema(description = "전화번호", example = "031-534-9784")
@@ -56,6 +59,16 @@ public class StoreListItemResponse {
   @Schema(description = "현재 위치로부터의 거리 (km). sortBy=distance 요청 시에만 포함", example = "3.2")
   private Double distanceKm;
 
+  @Schema(description = "이미지 URL 목록")
+  private List<String> imageUrls;
+
+  private static List<String> extractImageUrls(Store store) {
+    return store.getImages().stream()
+        .sorted(Comparator.comparingInt(StoreImage::getDisplayOrder))
+        .map(StoreImage::getImageUrl)
+        .toList();
+  }
+
   public static StoreListItemResponse from(Store store) {
     Integer maxDiscount =
         store.getBenefits().stream()
@@ -79,7 +92,8 @@ public class StoreListItemResponse {
         store.getOpenTime(),
         store.getCloseTime(),
         maxDiscount,
-        null);
+        null,
+        extractImageUrls(store));
   }
 
   public static StoreListItemResponse from(Store store, double distanceKm) {
@@ -98,6 +112,7 @@ public class StoreListItemResponse {
         base.openTime,
         base.closeTime,
         base.maxDiscountRate,
-        distanceKm);
+        distanceKm,
+        base.imageUrls);
   }
 }

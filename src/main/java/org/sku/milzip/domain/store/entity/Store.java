@@ -73,6 +73,13 @@ public class Store extends BaseTimeEntity {
       orphanRemoval = true)
   private List<StoreBenefit> benefits = new ArrayList<>();
 
+  @OneToMany(
+      mappedBy = "store",
+      cascade = CascadeType.ALL,
+      fetch = FetchType.LAZY,
+      orphanRemoval = true)
+  private List<StoreImage> images = new ArrayList<>();
+
   public static Store create(StoreCreateRequest request) {
     Store store = new Store();
     store.name = request.getName();

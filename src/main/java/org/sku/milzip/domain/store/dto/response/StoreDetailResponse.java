@@ -28,10 +28,10 @@ public class StoreDetailResponse {
   @Schema(description = "주소", example = "경기도 포천시 신북면 아트밸리로 42")
   private String address;
 
-  @Schema(description = "위도", example = "37.9330471")
+  @Schema(description = "위도", example = "37.89257701967812")
   private Double latitude;
 
-  @Schema(description = "경도", example = "127.2311818")
+  @Schema(description = "경도", example = "127.19789570920469")
   private Double longitude;
 
   @Schema(description = "전화번호", example = "031-534-9784")
@@ -55,6 +55,9 @@ public class StoreDetailResponse {
   @Schema(description = "매장 종료일 (임시 휴업 등)", example = "2025-12-31T00:00:00")
   private LocalDateTime closeDate;
 
+  @Schema(description = "이미지 URL 목록")
+  private List<String> imageUrls;
+
   @Schema(description = "군장병 혜택 목록")
   private List<StoreBenefitResponse> benefits;
 
@@ -73,6 +76,12 @@ public class StoreDetailResponse {
         store.getOpenTime(),
         store.getCloseTime(),
         store.getCloseDate(),
+        store.getImages().stream()
+            .sorted(
+                java.util.Comparator.comparingInt(
+                    org.sku.milzip.domain.store.entity.StoreImage::getDisplayOrder))
+            .map(org.sku.milzip.domain.store.entity.StoreImage::getImageUrl)
+            .toList(),
         store.getBenefits().stream().map(StoreBenefitResponse::from).toList());
   }
 }

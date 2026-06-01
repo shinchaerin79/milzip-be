@@ -1,10 +1,13 @@
 package org.sku.milzip.domain.recommendation.dto.response;
 
 import java.time.LocalTime;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 
 import org.sku.milzip.domain.store.entity.Store;
 import org.sku.milzip.domain.store.entity.StoreCategory;
+import org.sku.milzip.domain.store.entity.StoreImage;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
@@ -30,10 +33,10 @@ public class AiRecommendationItemResponse {
   @Schema(description = "전화번호", example = "02-1234-5678")
   private String phone;
 
-  @Schema(description = "위도", example = "37.5665")
+  @Schema(description = "위도", example = "37.89257701967812")
   private Double latitude;
 
-  @Schema(description = "경도", example = "126.9780")
+  @Schema(description = "경도", example = "127.19789570920469")
   private Double longitude;
 
   @Schema(description = "최대 할인율 (%)", example = "20")
@@ -57,6 +60,9 @@ public class AiRecommendationItemResponse {
   @Schema(description = "AI 추천 이유", example = "친구와 함께 가기 좋은 분위기의 삼겹살 맛집으로, 군장병 20% 할인 혜택이 있습니다.")
   private String reason;
 
+  @Schema(description = "이미지 URL 목록")
+  private List<String> imageUrls;
+
   public static AiRecommendationItemResponse of(
       Store store, String reason, Double distanceKm, Integer travelTimeMinutes, String travelMode) {
     return AiRecommendationItemResponse.builder()
@@ -74,6 +80,11 @@ public class AiRecommendationItemResponse {
         .travelTimeMinutes(travelTimeMinutes)
         .travelMode(travelMode)
         .reason(reason)
+        .imageUrls(
+            store.getImages().stream()
+                .sorted(Comparator.comparingInt(StoreImage::getDisplayOrder))
+                .map(StoreImage::getImageUrl)
+                .toList())
         .build();
   }
 

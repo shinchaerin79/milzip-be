@@ -1,6 +1,7 @@
 package org.sku.milzip.domain.recommendation.dto.response;
 
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Objects;
 
 import org.sku.milzip.domain.store.entity.Store;
@@ -27,10 +28,10 @@ public class QuickRecommendationResponse {
   @Schema(description = "주소", example = "경기도 포천시 신북면 아트밸리로 42")
   private String address;
 
-  @Schema(description = "위도", example = "37.9330471")
+  @Schema(description = "위도", example = "37.89257701967812")
   private Double latitude;
 
-  @Schema(description = "경도", example = "127.2311818")
+  @Schema(description = "경도", example = "127.19789570920469")
   private Double longitude;
 
   @Schema(description = "전화번호", example = "031-534-9784")
@@ -63,6 +64,18 @@ public class QuickRecommendationResponse {
   @Schema(description = "이동 수단 (도보 / 차량)", example = "도보")
   private String travelMode;
 
+  @Schema(description = "이미지 URL 목록")
+  private List<String> imageUrls;
+
+  private static List<String> extractImageUrls(Store store) {
+    return store.getImages().stream()
+        .sorted(
+            java.util.Comparator.comparingInt(
+                org.sku.milzip.domain.store.entity.StoreImage::getDisplayOrder))
+        .map(org.sku.milzip.domain.store.entity.StoreImage::getImageUrl)
+        .toList();
+  }
+
   public static QuickRecommendationResponse from(
       Store store, double distanceKm, int travelTimeMinutes, String travelMode) {
     return new QuickRecommendationResponse(
@@ -81,7 +94,8 @@ public class QuickRecommendationResponse {
         store.getCloseTime(),
         distanceKm,
         travelTimeMinutes,
-        travelMode);
+        travelMode,
+        extractImageUrls(store));
   }
 
   public static QuickRecommendationResponse from(Store store) {
@@ -101,7 +115,8 @@ public class QuickRecommendationResponse {
         store.getCloseTime(),
         null,
         null,
-        null);
+        null,
+        extractImageUrls(store));
   }
 
   private static Integer maxDiscount(Store store) {
