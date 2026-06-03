@@ -7,8 +7,11 @@ import jakarta.validation.Valid;
 import org.sku.milzip.domain.benefit.dto.request.AmusementParkBenefitRequest;
 import org.sku.milzip.domain.benefit.dto.request.MovieBenefitRequest;
 import org.sku.milzip.domain.benefit.dto.request.SelfDevelopmentBenefitRequest;
+import org.sku.milzip.domain.benefit.dto.response.AmusementParkBenefitResponse;
 import org.sku.milzip.domain.benefit.dto.response.BenefitResponse;
 import org.sku.milzip.domain.benefit.dto.response.BoxOfficeItemResponse;
+import org.sku.milzip.domain.benefit.dto.response.MovieBenefitResponse;
+import org.sku.milzip.domain.benefit.dto.response.SelfDevelopmentBenefitResponse;
 import org.sku.milzip.domain.benefit.dto.response.TmoResponse;
 import org.sku.milzip.domain.benefit.service.BenefitService;
 import org.sku.milzip.global.common.BaseResponse;
@@ -63,7 +66,7 @@ public class BenefitController {
           - CGV, 롯데시네마, 메가박스 등 영화관별 군인 할인 혜택 목록을 반환합니다.
           """)
   @GetMapping("/movies")
-  public BaseResponse<List<BenefitResponse>> getMovieBenefits() {
+  public BaseResponse<List<MovieBenefitResponse>> getMovieBenefits() {
     return BaseResponse.success(benefitService.getMovieBenefits());
   }
 
@@ -89,7 +92,7 @@ public class BenefitController {
           - 위치, 유효기간, 원래 가격, 할인 가격, 증명 방법을 포함합니다.
           """)
   @GetMapping("/amusement-parks")
-  public BaseResponse<List<BenefitResponse>> getAmusementParkBenefits() {
+  public BaseResponse<List<AmusementParkBenefitResponse>> getAmusementParkBenefits() {
     return BaseResponse.success(benefitService.getAmusementParkBenefits());
   }
 
@@ -103,7 +106,7 @@ public class BenefitController {
           - 온통청년 API 데이터 기반 (ETL로 주기적 업데이트).
           """)
   @GetMapping("/self-developments")
-  public BaseResponse<List<BenefitResponse>> getSelfDevelopmentBenefits() {
+  public BaseResponse<List<SelfDevelopmentBenefitResponse>> getSelfDevelopmentBenefits() {
     return BaseResponse.success(benefitService.getSelfDevelopmentBenefits());
   }
 
@@ -121,7 +124,7 @@ public class BenefitController {
       security = @SecurityRequirement(name = "bearerAuth"))
   @PostMapping("/movies")
   @PreAuthorize("hasRole('ADMIN')")
-  public BaseResponse<BenefitResponse> createMovieBenefit(
+  public BaseResponse<MovieBenefitResponse> createMovieBenefit(
       @Valid @RequestBody MovieBenefitRequest request) {
     return BaseResponse.success(benefitService.createMovieBenefit(request));
   }
@@ -131,7 +134,7 @@ public class BenefitController {
       security = @SecurityRequirement(name = "bearerAuth"))
   @PutMapping("/movies/{benefitId}")
   @PreAuthorize("hasRole('ADMIN')")
-  public BaseResponse<BenefitResponse> updateMovieBenefit(
+  public BaseResponse<MovieBenefitResponse> updateMovieBenefit(
       @Parameter(description = "혜택 ID") @PathVariable Long benefitId,
       @Valid @RequestBody MovieBenefitRequest request) {
     return BaseResponse.success(benefitService.updateMovieBenefit(benefitId, request));
@@ -144,7 +147,7 @@ public class BenefitController {
       security = @SecurityRequirement(name = "bearerAuth"))
   @PostMapping("/amusement-parks")
   @PreAuthorize("hasRole('ADMIN')")
-  public BaseResponse<BenefitResponse> createAmusementPark(
+  public BaseResponse<AmusementParkBenefitResponse> createAmusementPark(
       @Valid @RequestBody AmusementParkBenefitRequest request) {
     return BaseResponse.success(benefitService.createAmusementPark(request));
   }
@@ -154,7 +157,7 @@ public class BenefitController {
       security = @SecurityRequirement(name = "bearerAuth"))
   @PutMapping("/amusement-parks/{benefitId}")
   @PreAuthorize("hasRole('ADMIN')")
-  public BaseResponse<BenefitResponse> updateAmusementPark(
+  public BaseResponse<AmusementParkBenefitResponse> updateAmusementPark(
       @Parameter(description = "혜택 ID") @PathVariable Long benefitId,
       @Valid @RequestBody AmusementParkBenefitRequest request) {
     return BaseResponse.success(benefitService.updateAmusementPark(benefitId, request));
@@ -163,21 +166,11 @@ public class BenefitController {
   // ── 자기계발 혜택 관리 ──────────────────────────────────────
 
   @Operation(
-      summary = "[ 관리자 | 토큰 O | 자기계발 혜택 등록 ]",
-      security = @SecurityRequirement(name = "bearerAuth"))
-  @PostMapping("/self-developments")
-  @PreAuthorize("hasRole('ADMIN')")
-  public BaseResponse<BenefitResponse> createSelfDevelopment(
-      @Valid @RequestBody SelfDevelopmentBenefitRequest request) {
-    return BaseResponse.success(benefitService.createSelfDevelopment(request));
-  }
-
-  @Operation(
       summary = "[ 관리자 | 토큰 O | 자기계발 혜택 수정 ]",
       security = @SecurityRequirement(name = "bearerAuth"))
   @PutMapping("/self-developments/{benefitId}")
   @PreAuthorize("hasRole('ADMIN')")
-  public BaseResponse<BenefitResponse> updateSelfDevelopment(
+  public BaseResponse<SelfDevelopmentBenefitResponse> updateSelfDevelopment(
       @Parameter(description = "혜택 ID") @PathVariable Long benefitId,
       @Valid @RequestBody SelfDevelopmentBenefitRequest request) {
     return BaseResponse.success(benefitService.updateSelfDevelopment(benefitId, request));

@@ -10,7 +10,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum BenefitErrorCode implements BaseErrorCode {
   BENEFIT_NOT_FOUND("BEN4041", "존재하지 않는 혜택입니다.", HttpStatus.NOT_FOUND),
-  TMO_NOT_FOUND("BEN4042", "존재하지 않는 TMO입니다.", HttpStatus.NOT_FOUND);
+  TMO_NOT_FOUND("BEN4042", "존재하지 않는 TMO입니다.", HttpStatus.NOT_FOUND),
+  BENEFIT_TYPE_MISMATCH("BEN4003", "혜택 유형이 일치하지 않습니다.", HttpStatus.BAD_REQUEST);
 
   private final String code;
   private final String message;

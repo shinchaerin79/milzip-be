@@ -71,6 +71,9 @@ public class BenefitResponse {
   @Schema(description = "지원 유형")
   private String supportType;
 
+  @Schema(description = "담당 기관")
+  private String superviseInst;
+
   public static BenefitResponse from(Benefit benefit) {
     return BenefitResponse.builder()
         .id(benefit.getId())
@@ -91,6 +94,7 @@ public class BenefitResponse {
         .category(benefit.getCategory())
         .applyUrl(benefit.getApplyUrl())
         .supportType(benefit.getSupportType())
+        .superviseInst(benefit.getSuperviseInst())
         .build();
   }
 }

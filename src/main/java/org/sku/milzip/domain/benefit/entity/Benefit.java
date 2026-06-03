@@ -61,8 +61,14 @@ public class Benefit extends BaseTimeEntity {
 
   // 공통 - 자기계발 혜택
   private String category;
+
+  @Column(length = 1000)
   private String applyUrl;
+
+  @Column(length = 2000)
   private String supportType;
+
+  private String superviseInst;
 
   public static Benefit create(BenefitCreateRequest request) {
     Benefit benefit = new Benefit();

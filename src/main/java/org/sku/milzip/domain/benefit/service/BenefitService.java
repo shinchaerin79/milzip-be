@@ -6,12 +6,16 @@ import java.util.List;
 import org.sku.milzip.domain.benefit.dto.request.AmusementParkBenefitRequest;
 import org.sku.milzip.domain.benefit.dto.request.MovieBenefitRequest;
 import org.sku.milzip.domain.benefit.dto.request.SelfDevelopmentBenefitRequest;
+import org.sku.milzip.domain.benefit.dto.response.AmusementParkBenefitResponse;
 import org.sku.milzip.domain.benefit.dto.response.BenefitResponse;
 import org.sku.milzip.domain.benefit.dto.response.BoxOfficeItemResponse;
+import org.sku.milzip.domain.benefit.dto.response.MovieBenefitResponse;
+import org.sku.milzip.domain.benefit.dto.response.SelfDevelopmentBenefitResponse;
 import org.sku.milzip.domain.benefit.dto.response.TmoResponse;
 import org.sku.milzip.domain.benefit.entity.Benefit;
 import org.sku.milzip.domain.benefit.entity.BenefitType;
 import org.sku.milzip.domain.benefit.exception.BenefitErrorCode;
+import org.sku.milzip.domain.benefit.mapper.BenefitMapper;
 import org.sku.milzip.domain.benefit.repository.BenefitRepository;
 import org.sku.milzip.domain.benefit.repository.TmoRepository;
 import org.sku.milzip.global.exception.CustomException;
@@ -28,6 +32,7 @@ public class BenefitService {
   private final BenefitRepository benefitRepository;
   private final TmoRepository tmoRepository;
   private final BoxOfficeService boxOfficeService;
+  private final BenefitMapper benefitMapper;
 
   /** TMO 목록 조회 (좌표 제공 시 거리순, 미제공 시 전체) */
   @Transactional(readOnly = true)
@@ -46,11 +51,11 @@ public class BenefitService {
     return tmoRepository.findAll().stream().map(TmoResponse::from).toList();
   }
 
-  /** 영화 혜택 목록 (영화관 할인 정보) */
+  /** 영화 혜택 목록 */
   @Transactional(readOnly = true)
-  public List<BenefitResponse> getMovieBenefits() {
+  public List<MovieBenefitResponse> getMovieBenefits() {
     return benefitRepository.findByBenefitTypeOrderByIdAsc(BenefitType.MOVIE_BENEFIT).stream()
-        .map(BenefitResponse::from)
+        .map(benefitMapper::toMovieResponse)
         .toList();
   }
 
@@ -61,21 +66,21 @@ public class BenefitService {
 
   /** 놀이공원 혜택 목록 */
   @Transactional(readOnly = true)
-  public List<BenefitResponse> getAmusementParkBenefits() {
+  public List<AmusementParkBenefitResponse> getAmusementParkBenefits() {
     return benefitRepository.findByBenefitTypeOrderByIdAsc(BenefitType.AMUSEMENT_PARK).stream()
-        .map(BenefitResponse::from)
+        .map(benefitMapper::toAmusementParkResponse)
         .toList();
   }
 
-  /** 자기계발 혜택 목록 (온통청년 API 데이터 기반, ETL로 적재) */
+  /** 자기계발 혜택 목록 */
   @Transactional(readOnly = true)
-  public List<BenefitResponse> getSelfDevelopmentBenefits() {
+  public List<SelfDevelopmentBenefitResponse> getSelfDevelopmentBenefits() {
     return benefitRepository.findByBenefitTypeOrderByIdAsc(BenefitType.SELF_DEVELOPMENT).stream()
-        .map(BenefitResponse::from)
+        .map(benefitMapper::toSelfDevelopmentResponse)
         .toList();
   }
 
-  /** 혜택 단건 조회 */
+  /** 혜택 단건 조회 (공통 응답) */
   @Transactional(readOnly = true)
   public BenefitResponse getBenefit(Long benefitId) {
     return benefitRepository
@@ -86,42 +91,40 @@ public class BenefitService {
 
   /** 영화 혜택 등록/수정 */
   @Transactional
-  public BenefitResponse createMovieBenefit(MovieBenefitRequest request) {
-    return BenefitResponse.from(benefitRepository.save(Benefit.createMovieBenefit(request)));
+  public MovieBenefitResponse createMovieBenefit(MovieBenefitRequest request) {
+    return benefitMapper.toMovieResponse(
+        benefitRepository.save(Benefit.createMovieBenefit(request)));
   }
 
   @Transactional
-  public BenefitResponse updateMovieBenefit(Long benefitId, MovieBenefitRequest request) {
-    Benefit benefit = getBenefitEntity(benefitId);
+  public MovieBenefitResponse updateMovieBenefit(Long benefitId, MovieBenefitRequest request) {
+    Benefit benefit = getBenefitEntityWithType(benefitId, BenefitType.MOVIE_BENEFIT);
     benefit.updateMovieBenefit(request);
-    return BenefitResponse.from(benefit);
+    return benefitMapper.toMovieResponse(benefit);
   }
 
   /** 놀이공원 혜택 등록/수정 */
   @Transactional
-  public BenefitResponse createAmusementPark(AmusementParkBenefitRequest request) {
-    return BenefitResponse.from(benefitRepository.save(Benefit.createAmusementPark(request)));
+  public AmusementParkBenefitResponse createAmusementPark(AmusementParkBenefitRequest request) {
+    return benefitMapper.toAmusementParkResponse(
+        benefitRepository.save(Benefit.createAmusementPark(request)));
   }
 
   @Transactional
-  public BenefitResponse updateAmusementPark(Long benefitId, AmusementParkBenefitRequest request) {
-    Benefit benefit = getBenefitEntity(benefitId);
+  public AmusementParkBenefitResponse updateAmusementPark(
+      Long benefitId, AmusementParkBenefitRequest request) {
+    Benefit benefit = getBenefitEntityWithType(benefitId, BenefitType.AMUSEMENT_PARK);
     benefit.updateAmusementPark(request);
-    return BenefitResponse.from(benefit);
+    return benefitMapper.toAmusementParkResponse(benefit);
   }
 
-  /** 자기계발 혜택 등록/수정 */
+  /** 자기계발 혜택 수정 (등록은 ETL에서 처리) */
   @Transactional
-  public BenefitResponse createSelfDevelopment(SelfDevelopmentBenefitRequest request) {
-    return BenefitResponse.from(benefitRepository.save(Benefit.createSelfDevelopment(request)));
-  }
-
-  @Transactional
-  public BenefitResponse updateSelfDevelopment(
+  public SelfDevelopmentBenefitResponse updateSelfDevelopment(
       Long benefitId, SelfDevelopmentBenefitRequest request) {
-    Benefit benefit = getBenefitEntity(benefitId);
+    Benefit benefit = getBenefitEntityWithType(benefitId, BenefitType.SELF_DEVELOPMENT);
     benefit.updateSelfDevelopment(request);
-    return BenefitResponse.from(benefit);
+    return benefitMapper.toSelfDevelopmentResponse(benefit);
   }
 
   /** 혜택 삭제 (관리자, 공통) */
@@ -134,5 +137,13 @@ public class BenefitService {
     return benefitRepository
         .findById(benefitId)
         .orElseThrow(() -> new CustomException(BenefitErrorCode.BENEFIT_NOT_FOUND));
+  }
+
+  private Benefit getBenefitEntityWithType(Long benefitId, BenefitType expectedType) {
+    Benefit benefit = getBenefitEntity(benefitId);
+    if (benefit.getBenefitType() != expectedType) {
+      throw new CustomException(BenefitErrorCode.BENEFIT_TYPE_MISMATCH);
+    }
+    return benefit;
   }
 }

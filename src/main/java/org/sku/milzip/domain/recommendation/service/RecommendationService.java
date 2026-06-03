@@ -34,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 public class RecommendationService {
 
   private static final double WALKING_SPEED_KMH = 4.0;
-  private static final double DRIVING_SPEED_KMH = 30.0;
+  private static final double DRIVING_SPEED_KMH = 50.0;
   private static final double ROAD_DISTANCE_FACTOR = 1.3; // 직선 거리 → 실제 도보 거리 보정
   private static final int MAX_WALKING_MINUTES = 30;
   private static final int MAX_DRIVING_MINUTES = 60;
@@ -160,30 +160,45 @@ public class RecommendationService {
           .build();
     }
 
-    // 3. 지역(시/도)별 코스 후보 구성: region -> {category -> 유사도 1순위 매장}
-    //    카테고리 순서(LinkedHashMap)를 유지해 코스 내 순서 보장
-    Map<String, Map<StoreCategory, Store>> regionCourseMap = new LinkedHashMap<>();
+    // 3. 거리 기반 코스 구성: 카테고리별 후보를 거리 오름차순 정렬 후
+    //    1순위 매장들로 코스1, 2순위 매장들로 코스2, 3순위 매장들로 코스3
+    //    좌표 없으면 유사도 순서 유지
+    boolean hasLocation = request.getLat() != null && request.getLng() != null;
+
+    Map<StoreCategory, List<Store>> rankedByCategory = new LinkedHashMap<>();
     for (Map.Entry<StoreCategory, List<Store>> entry : candidatesByCategory.entrySet()) {
-      StoreCategory cat = entry.getKey();
-      for (Store store : entry.getValue()) {
-        String region = extractRegion(store.getAddress());
-        regionCourseMap
-            .computeIfAbsent(region, k -> new LinkedHashMap<>())
-            .putIfAbsent(cat, store); // 유사도 가장 높은 매장만 지역에 배정
-      }
+      List<Store> sorted =
+          hasLocation
+              ? entry.getValue().stream()
+                  .sorted(
+                      Comparator.comparingDouble(
+                          s ->
+                              s.getLatitude() != null
+                                  ? GeoUtils.calculateDistanceKm(
+                                      request.getLat(), request.getLng(),
+                                      s.getLatitude(), s.getLongitude())
+                                  : Double.MAX_VALUE))
+                  .toList()
+              : entry.getValue();
+      rankedByCategory.put(entry.getKey(), sorted);
     }
 
-    // 완성도 높은 지역 우선 정렬 (필요 카테고리를 더 많이 가진 지역 → 앞), 최대 3 코스
-    List<Map.Entry<String, Map<StoreCategory, Store>>> sortedRegions =
-        regionCourseMap.entrySet().stream()
-            .filter(e -> !e.getValue().isEmpty())
-            .sorted((a, b) -> Integer.compare(b.getValue().size(), a.getValue().size()))
-            .limit(3)
-            .toList();
+    int maxCourses =
+        Math.min(3, rankedByCategory.values().stream().mapToInt(List::size).min().orElse(1));
+    List<Map<StoreCategory, Store>> courseList = new ArrayList<>();
+    for (int i = 0; i < maxCourses; i++) {
+      Map<StoreCategory, Store> course = new LinkedHashMap<>();
+      for (Map.Entry<StoreCategory, List<Store>> entry : rankedByCategory.entrySet()) {
+        if (i < entry.getValue().size()) {
+          course.put(entry.getKey(), entry.getValue().get(i));
+        }
+      }
+      if (!course.isEmpty()) courseList.add(course);
+    }
 
     // 4. GPT 추천 이유 생성 (선택된 매장 전체)
     List<Store> allSelected =
-        sortedRegions.stream().flatMap(e -> e.getValue().values().stream()).distinct().toList();
+        courseList.stream().flatMap(c -> c.values().stream()).distinct().toList();
 
     String companionLabel =
         request.getCompanion() != null ? request.getCompanion().getLabel() : null;
@@ -204,11 +219,10 @@ public class RecommendationService {
     // 5. 코스 응답 구성
     List<CourseResponse> courses = new ArrayList<>();
     int courseNum = 1;
-    for (Map.Entry<String, Map<StoreCategory, Store>> entry : sortedRegions) {
-      String region = entry.getKey();
+    for (Map<StoreCategory, Store> courseMap : courseList) {
       List<AiRecommendationItemResponse> items = new ArrayList<>();
 
-      for (Store store : entry.getValue().values()) {
+      for (Store store : courseMap.values()) {
         Double distanceKm = null;
         Integer travelTimeMinutes = null;
         String travelMode = null;
@@ -255,8 +269,7 @@ public class RecommendationService {
                 store, reason, distanceKm, travelTimeMinutes, travelMode));
       }
 
-      courses.add(
-          CourseResponse.builder().courseNumber(courseNum++).region(region).stores(items).build());
+      courses.add(CourseResponse.builder().courseNumber(courseNum++).stores(items).build());
     }
     return AiRecommendationResponse.builder()
         .courses(courses)
