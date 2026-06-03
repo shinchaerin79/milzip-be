@@ -33,6 +33,9 @@ public class SecurityConfig {
     "/swagger-ui.html",
   };
 
+  // dev 환경에서는 SwaggerSecurityConfig(Order=1)가 먼저 처리해 Basic Auth 적용
+  // 로컬(default 프로파일)에서는 PUBLIC_URLS에 포함되어 인증 없이 접근 가능
+
   private final CorsConfigurationSource corsConfigurationSource;
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
   private final JwtExceptionHandler jwtExceptionHandler;
