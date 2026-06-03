@@ -56,7 +56,7 @@ public class Benefit extends BaseTimeEntity {
   private Integer discountedPrice;
   private String discountDescription;
 
-  @Column(length = 500)
+  @Column(length = 2000)
   private String verificationMethod;
 
   // 공통 - 자기계발 혜택
