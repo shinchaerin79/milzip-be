@@ -13,4 +13,7 @@ public interface BenefitRepository extends JpaRepository<Benefit, Long> {
   List<Benefit> findByBenefitTypeOrderByIdAsc(BenefitType benefitType);
 
   Page<Benefit> findByBenefitTypeOrderByIdAsc(BenefitType benefitType, Pageable pageable);
+
+  Page<Benefit> findByBenefitTypeAndCategoryOrderByIdAsc(
+      BenefitType benefitType, String category, Pageable pageable);
 }

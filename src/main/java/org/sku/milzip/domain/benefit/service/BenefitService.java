@@ -77,11 +77,17 @@ public class BenefitService {
   /** 자기계발 혜택 목록 (페이지네이션) */
   @Transactional(readOnly = true)
   public PageResponse<SelfDevelopmentBenefitResponse> getSelfDevelopmentBenefits(
-      int page, int size) {
+      int page, int size, String category) {
+    PageRequest pageRequest = PageRequest.of(page, size);
+    String normalizedCategory = normalizeCategoryFilter(category);
+
     return PageResponse.from(
-        benefitRepository
-            .findByBenefitTypeOrderByIdAsc(BenefitType.SELF_DEVELOPMENT, PageRequest.of(page, size))
-            .map(benefitMapper::toSelfDevelopmentResponse));
+        (normalizedCategory == null
+                ? benefitRepository.findByBenefitTypeOrderByIdAsc(
+                    BenefitType.SELF_DEVELOPMENT, pageRequest)
+                : benefitRepository.findByBenefitTypeAndCategoryOrderByIdAsc(
+                    BenefitType.SELF_DEVELOPMENT, normalizedCategory, pageRequest))
+            .map(this::toSelfDevelopmentResponse));
   }
 
   /** 혜택 단건 조회 (공통 응답) */
@@ -128,7 +134,7 @@ public class BenefitService {
       Long benefitId, SelfDevelopmentBenefitRequest request) {
     Benefit benefit = getBenefitEntityWithType(benefitId, BenefitType.SELF_DEVELOPMENT);
     benefit.updateSelfDevelopment(request);
-    return benefitMapper.toSelfDevelopmentResponse(benefit);
+    return toSelfDevelopmentResponse(benefit);
   }
 
   /** 혜택 삭제 (관리자, 공통) */
@@ -149,5 +155,42 @@ public class BenefitService {
       throw new CustomException(BenefitErrorCode.BENEFIT_TYPE_MISMATCH);
     }
     return benefit;
+  }
+
+  private SelfDevelopmentBenefitResponse toSelfDevelopmentResponse(Benefit benefit) {
+    SelfDevelopmentBenefitResponse response = benefitMapper.toSelfDevelopmentResponse(benefit);
+    return SelfDevelopmentBenefitResponse.builder()
+        .id(response.getId())
+        .title(response.getTitle())
+        .description(response.getDescription())
+        .imageUrl(response.getImageUrl())
+        .category(normalizeCategoryDisplay(response.getCategory()))
+        .applyUrl(response.getApplyUrl())
+        .supportType(response.getSupportType())
+        .build();
+  }
+
+  private String normalizeCategoryFilter(String category) {
+    if (category == null || category.isBlank()) {
+      return null;
+    }
+
+    return switch (category.trim()) {
+      case "금융", "복지·금융" -> "복지·금융";
+      case "문화", "복지·문화" -> "복지·문화";
+      default -> category.trim();
+    };
+  }
+
+  private String normalizeCategoryDisplay(String category) {
+    if (category == null) {
+      return null;
+    }
+
+    return switch (category) {
+      case "복지·금융" -> "금융";
+      case "복지·문화" -> "문화";
+      default -> category;
+    };
   }
 }

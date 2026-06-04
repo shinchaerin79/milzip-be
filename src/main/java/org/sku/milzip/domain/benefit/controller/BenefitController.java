@@ -111,8 +111,11 @@ public class BenefitController {
       @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") @RequestParam(defaultValue = "0")
           int page,
       @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10")
-          int size) {
-    return BaseResponse.success(benefitService.getSelfDevelopmentBenefits(page, size));
+          int size,
+      @Parameter(description = "카테고리 필터 (금융, 일자리, 주거, 교육, 문화, 참여·권리, 건강)", example = "교육")
+          @RequestParam(required = false)
+          String category) {
+    return BaseResponse.success(benefitService.getSelfDevelopmentBenefits(page, size, category));
   }
 
   @Operation(summary = "[ 전체 | 토큰 X | 혜택 상세 조회 ]")
