@@ -1,7 +1,9 @@
 package org.sku.milzip.global.config;
 
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.sku.milzip.global.config.properties.CorsProperties;
 import org.springframework.context.annotation.Bean;
@@ -21,8 +23,12 @@ public class CorsConfig {
   @Bean
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration config = new CorsConfiguration();
+    Set<String> allowedOriginPatterns = new LinkedHashSet<>();
+    allowedOriginPatterns.addAll(Arrays.asList(corsProperties.getAllowedOrigins()));
+    allowedOriginPatterns.add("http://localhost:*");
+    allowedOriginPatterns.add("http://127.0.0.1:*");
 
-    config.setAllowedOrigins(Arrays.asList(corsProperties.getAllowedOrigins()));
+    config.setAllowedOriginPatterns(List.copyOf(allowedOriginPatterns));
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     config.setAllowedHeaders(List.of("*"));
     config.setExposedHeaders(List.of("Authorization"));
