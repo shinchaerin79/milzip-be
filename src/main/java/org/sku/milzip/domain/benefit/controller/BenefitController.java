@@ -15,6 +15,7 @@ import org.sku.milzip.domain.benefit.dto.response.SelfDevelopmentBenefitResponse
 import org.sku.milzip.domain.benefit.dto.response.TmoResponse;
 import org.sku.milzip.domain.benefit.service.BenefitService;
 import org.sku.milzip.global.common.BaseResponse;
+import org.sku.milzip.global.common.PageResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -106,8 +107,12 @@ public class BenefitController {
           - 온통청년 API 데이터 기반 (ETL로 주기적 업데이트).
           """)
   @GetMapping("/self-developments")
-  public BaseResponse<List<SelfDevelopmentBenefitResponse>> getSelfDevelopmentBenefits() {
-    return BaseResponse.success(benefitService.getSelfDevelopmentBenefits());
+  public BaseResponse<PageResponse<SelfDevelopmentBenefitResponse>> getSelfDevelopmentBenefits(
+      @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") @RequestParam(defaultValue = "0")
+          int page,
+      @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10")
+          int size) {
+    return BaseResponse.success(benefitService.getSelfDevelopmentBenefits(page, size));
   }
 
   @Operation(summary = "[ 전체 | 토큰 X | 혜택 상세 조회 ]")

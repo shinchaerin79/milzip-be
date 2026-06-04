@@ -18,8 +18,10 @@ import org.sku.milzip.domain.benefit.exception.BenefitErrorCode;
 import org.sku.milzip.domain.benefit.mapper.BenefitMapper;
 import org.sku.milzip.domain.benefit.repository.BenefitRepository;
 import org.sku.milzip.domain.benefit.repository.TmoRepository;
+import org.sku.milzip.global.common.PageResponse;
 import org.sku.milzip.global.exception.CustomException;
 import org.sku.milzip.global.util.GeoUtils;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,12 +74,14 @@ public class BenefitService {
         .toList();
   }
 
-  /** 자기계발 혜택 목록 */
+  /** 자기계발 혜택 목록 (페이지네이션) */
   @Transactional(readOnly = true)
-  public List<SelfDevelopmentBenefitResponse> getSelfDevelopmentBenefits() {
-    return benefitRepository.findByBenefitTypeOrderByIdAsc(BenefitType.SELF_DEVELOPMENT).stream()
-        .map(benefitMapper::toSelfDevelopmentResponse)
-        .toList();
+  public PageResponse<SelfDevelopmentBenefitResponse> getSelfDevelopmentBenefits(
+      int page, int size) {
+    return PageResponse.from(
+        benefitRepository
+            .findByBenefitTypeOrderByIdAsc(BenefitType.SELF_DEVELOPMENT, PageRequest.of(page, size))
+            .map(benefitMapper::toSelfDevelopmentResponse));
   }
 
   /** 혜택 단건 조회 (공통 응답) */
