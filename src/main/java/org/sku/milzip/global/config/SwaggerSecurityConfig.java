@@ -8,7 +8,6 @@ import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
@@ -31,23 +30,22 @@ public class SwaggerSecurityConfig {
   @Bean
   @Order(1)
   public SecurityFilterChain swaggerFilterChain(HttpSecurity http) throws Exception {
+    InMemoryUserDetailsManager userDetailsManager =
+        new InMemoryUserDetailsManager(
+            User.builder()
+                .username(username)
+                .password(passwordEncoder.encode(password))
+                .roles("SWAGGER")
+                .build());
+
     http.securityMatcher("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
         .csrf(csrf -> csrf.disable())
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
         .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+        .userDetailsService(userDetailsManager)
         .httpBasic(basic -> {});
 
     return http.build();
-  }
-
-  @Bean
-  public UserDetailsService swaggerUserDetailsService() {
-    return new InMemoryUserDetailsManager(
-        User.builder()
-            .username(username)
-            .password(passwordEncoder.encode(password))
-            .roles("SWAGGER")
-            .build());
   }
 }
