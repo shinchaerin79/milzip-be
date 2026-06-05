@@ -28,6 +28,8 @@ public class SecurityConfig {
     "/stores/**",
     "/recommendations/**",
     "/benefits/**",
+    "/users/email/availability",
+    "/users/nickname/availability",
     "/v3/api-docs/**",
     "/swagger-ui/**",
     "/swagger-ui.html",

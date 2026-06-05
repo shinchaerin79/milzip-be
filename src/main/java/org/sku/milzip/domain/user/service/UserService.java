@@ -93,6 +93,24 @@ public class UserService {
             .map(ReviewResponse::from));
   }
 
+  // 중복 확인
+
+  /** 이메일 중복 확인 (비로그인 - 회원가입 시) */
+  @Transactional(readOnly = true)
+  public void checkEmailDuplicate(String email) {
+    if (userRepository.existsByEmailIgnoreCase(email)) {
+      throw new CustomException(UserErrorCode.EMAIL_ALREADY_EXISTS);
+    }
+  }
+
+  /** 닉네임 중복 확인 (비로그인 - 회원가입 시) */
+  @Transactional(readOnly = true)
+  public void checkNicknameDuplicate(String nickname) {
+    if (userRepository.existsByNickname(nickname)) {
+      throw new CustomException(UserErrorCode.NICKNAME_ALREADY_EXISTS);
+    }
+  }
+
   // Private helpers
 
   private User getUser(String email) {

@@ -83,6 +83,28 @@ public class UserController {
     return BaseResponse.success(userService.getAllUsers());
   }
 
+  // 중복 확인 (비로그인 - 회원가입 시)
+
+  @Operation(
+      summary = "[ 전체 | 토큰 X | 이메일 중복 확인 ]",
+      description = "**Error**\n- USR4092: 이미 사용 중인 이메일 (409)")
+  @GetMapping("/email/availability")
+  public BaseResponse<Void> checkEmail(
+      @Parameter(description = "확인할 이메일", example = "test@milzip.com") @RequestParam String email) {
+    userService.checkEmailDuplicate(email);
+    return BaseResponse.success(null);
+  }
+
+  @Operation(
+      summary = "[ 전체 | 토큰 X | 닉네임 중복 확인 ]",
+      description = "**Error**\n- USR4093: 이미 사용 중인 닉네임 (409)")
+  @GetMapping("/nickname/availability")
+  public BaseResponse<Void> checkNickname(
+      @Parameter(description = "확인할 닉네임", example = "밀집이") @RequestParam String nickname) {
+    userService.checkNicknameDuplicate(nickname);
+    return BaseResponse.success(null);
+  }
+
   // 즐겨찾기
 
   @Operation(

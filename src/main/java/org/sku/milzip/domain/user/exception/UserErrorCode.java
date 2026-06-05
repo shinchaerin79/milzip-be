@@ -14,7 +14,9 @@ public enum UserErrorCode implements BaseErrorCode {
   FAVORITE_NOT_FOUND("USR4041", "즐겨찾기 내역이 존재하지 않습니다.", HttpStatus.NOT_FOUND),
 
   // 409 Conflict
-  FAVORITE_ALREADY_EXISTS("USR4091", "이미 즐겨찾기에 추가된 매장입니다.", HttpStatus.CONFLICT);
+  FAVORITE_ALREADY_EXISTS("USR4091", "이미 즐겨찾기에 추가된 매장입니다.", HttpStatus.CONFLICT),
+  EMAIL_ALREADY_EXISTS("USR4092", "이미 사용 중인 이메일입니다.", HttpStatus.CONFLICT),
+  NICKNAME_ALREADY_EXISTS("USR4093", "이미 사용 중인 닉네임입니다.", HttpStatus.CONFLICT);
 
   private final String code;
   private final String message;
