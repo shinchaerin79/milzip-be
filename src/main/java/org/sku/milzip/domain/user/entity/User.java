@@ -60,6 +60,8 @@ public class User extends BaseTimeEntity {
 
   private LocalDateTime emailVerifiedAt;
 
+  private String profileImageUrl;
+
   public static User ofLocal(String email, String encodedPassword, String nickname, String name) {
     User user = new User();
     user.email = email;
@@ -106,5 +108,9 @@ public class User extends BaseTimeEntity {
   public void completeMilitaryVerification() {
     this.militaryStatus = MilitaryStatus.VERIFIED;
     this.role = UserRole.SOLDIER;
+  }
+
+  public void updateProfileImage(String profileImageUrl) {
+    this.profileImageUrl = profileImageUrl;
   }
 }

@@ -1,5 +1,6 @@
 package org.sku.milzip.domain.review.entity;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.persistence.CollectionTable;
@@ -84,6 +85,11 @@ public class Review extends BaseTimeEntity {
   @Column(unique = true)
   private String receiptIdentifier; // 영수증 중복 방지용 식별자 (OCR 연동 시 사용)
 
+  @ElementCollection(fetch = FetchType.EAGER)
+  @CollectionTable(name = "review_images", joinColumns = @JoinColumn(name = "review_id"))
+  @Column(name = "image_url")
+  private List<String> imageUrls = new ArrayList<>();
+
   public static Review create(Store store, User user, ReviewCreateRequest request) {
     Review review = new Review();
     review.store = store;
@@ -98,7 +104,12 @@ public class Review extends BaseTimeEntity {
     review.content = request.getContent();
     review.status = ReviewStatus.VISIBLE;
     review.receiptIdentifier = request.getReceiptIdentifier();
+    review.imageUrls = new ArrayList<>();
     return review;
+  }
+
+  public void updateImages(List<String> imageUrls) {
+    this.imageUrls = imageUrls == null ? new ArrayList<>() : new ArrayList<>(imageUrls);
   }
 
   public void update(ReviewCreateRequest request) {

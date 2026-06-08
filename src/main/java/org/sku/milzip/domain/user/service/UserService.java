@@ -1,6 +1,7 @@
 package org.sku.milzip.domain.user.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.sku.milzip.domain.auth.exception.AuthErrorCode;
 import org.sku.milzip.domain.review.dto.response.ReviewResponse;
@@ -17,13 +18,19 @@ import org.sku.milzip.domain.user.repository.FavoriteRepository;
 import org.sku.milzip.domain.user.repository.UserRepository;
 import org.sku.milzip.global.common.PageResponse;
 import org.sku.milzip.global.exception.CustomException;
+import org.sku.milzip.global.s3.enums.PathName;
+import org.sku.milzip.global.s3.service.S3AsyncService;
+import org.sku.milzip.global.s3.service.S3Service;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -32,6 +39,8 @@ public class UserService {
   private final StoreRepository storeRepository;
   private final FavoriteRepository favoriteRepository;
   private final ReviewRepository reviewRepository;
+  private final Optional<S3AsyncService> s3AsyncService;
+  private final Optional<S3Service> s3Service;
 
   @Transactional(readOnly = true)
   public UserResponse getMyInfo(String email) {
@@ -91,6 +100,33 @@ public class UserService {
             .findByUserId(
                 user.getId(), PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")))
             .map(ReviewResponse::from));
+  }
+
+  // 프로필 이미지
+
+  @Transactional
+  public UserResponse updateProfileImage(String email, MultipartFile profileImage) {
+    User user = getUser(email);
+
+    String oldImageUrl = user.getProfileImageUrl();
+    String newImageUrl =
+        s3AsyncService.map(s3 -> s3.uploadFile(PathName.PROFILE, profileImage)).orElse(null);
+
+    if (newImageUrl != null) {
+      user.updateProfileImage(newImageUrl);
+      if (oldImageUrl != null) {
+        s3Service.ifPresent(
+            s3 -> {
+              try {
+                s3.deleteFile(s3.extractKeyNameFromUrl(oldImageUrl));
+              } catch (Exception e) {
+                log.warn("[UserService] 기존 프로필 이미지 삭제 실패 - url: {}", oldImageUrl, e);
+              }
+            });
+      }
+    }
+
+    return UserResponse.from(user);
   }
 
   // 중복 확인

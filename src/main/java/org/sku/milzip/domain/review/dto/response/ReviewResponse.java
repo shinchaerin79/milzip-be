@@ -33,6 +33,9 @@ public class ReviewResponse {
   @Schema(description = "작성자 닉네임", example = "포천병사")
   private String nickname;
 
+  @Schema(description = "작성자 프로필 이미지 URL")
+  private String profileImageUrl;
+
   @Schema(description = "별점 (1~5)", example = "5")
   private int rating;
 
@@ -63,6 +66,9 @@ public class ReviewResponse {
   @Schema(description = "작성일시")
   private LocalDateTime createdAt;
 
+  @Schema(description = "리뷰 이미지 URL 목록 (최대 3개)")
+  private List<String> imageUrls;
+
   @Schema(description = "수정일시")
   private LocalDateTime modifiedAt;
 
@@ -72,6 +78,7 @@ public class ReviewResponse {
         .storeId(review.getStore().getId())
         .userId(review.getUser().getId())
         .nickname(review.getUser().getNickname())
+        .profileImageUrl(review.getUser().getProfileImageUrl())
         .rating(review.getRating())
         .benefitStatus(review.getBenefitStatus())
         .visitType(review.getVisitType())
@@ -81,6 +88,7 @@ public class ReviewResponse {
         .goodPoints(review.getGoodPoints())
         .content(review.getContent())
         .status(review.getStatus())
+        .imageUrls(review.getImageUrls())
         .createdAt(review.getCreatedAt())
         .modifiedAt(review.getModifiedAt())
         .build();

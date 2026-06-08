@@ -5,6 +5,10 @@ import java.io.IOException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import org.sku.milzip.domain.auth.dto.request.LoginRequest;
 import org.sku.milzip.domain.auth.dto.request.PasswordChangeRequest;
@@ -16,6 +20,8 @@ import org.sku.milzip.domain.auth.entity.VerificationType;
 import org.sku.milzip.domain.auth.service.AuthService;
 import org.sku.milzip.domain.auth.service.KakaoAuthService;
 import org.sku.milzip.global.common.BaseResponse;
+import org.springframework.http.MediaType;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,12 +30,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 @Tag(name = "Auth", description = "인증/인가 API")
+@Validated
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -102,13 +110,29 @@ public class AuthController {
           **Returns**
           - message: "회원가입이 완료되었습니다."
 
+          **Parameters**
+          - profileImage: 프로필 이미지 (선택, 이미지 파일)
+
           **Error**
           - AUTH4002: 이미 가입된 이메일
           - AUTH4003: 이메일 인증 미완료
           """)
-  @PostMapping("/register")
-  public BaseResponse<Void> register(@Valid @RequestBody SignUpRequest request) {
-    authService.signUp(request);
+  @PostMapping(
+      value = "/register",
+      consumes = {MediaType.MULTIPART_FORM_DATA_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE})
+  public BaseResponse<Void> register(
+      @RequestParam @NotBlank @Email String email,
+      @RequestParam
+          @NotBlank
+          @Size(min = 8, max = 20)
+          @Pattern(
+              regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*]).+$",
+              message = "비밀번호는 영문, 숫자, 특수문자(!@#$%^&*)를 각 1자 이상 포함해야 합니다.")
+          String password,
+      @RequestParam @NotBlank @Size(min = 2, max = 20) String nickname,
+      @RequestParam @NotBlank String name,
+      @RequestParam(required = false) MultipartFile profileImage) {
+    authService.signUp(new SignUpRequest(email, password, nickname, name), profileImage);
     return BaseResponse.success("회원가입이 완료되었습니다.", null);
   }
 

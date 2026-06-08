@@ -2,6 +2,8 @@ package org.sku.milzip.global.exception;
 
 import java.util.stream.Collectors;
 
+import jakarta.validation.ConstraintViolationException;
+
 import org.sku.milzip.global.common.BaseResponse;
 import org.sku.milzip.global.exception.model.BaseErrorCode;
 import org.springframework.http.HttpStatus;
@@ -36,6 +38,17 @@ public class GlobalExceptionHandler {
             .map(e -> String.format("[%s] %s", e.getField(), e.getDefaultMessage()))
             .collect(Collectors.joining(" / "));
     log.warn("Validation 오류 발생: {}", errorMessages);
+    return ResponseEntity.badRequest().body(BaseResponse.error(400, errorMessages));
+  }
+
+  @ExceptionHandler(ConstraintViolationException.class)
+  public ResponseEntity<BaseResponse<?>> handleConstraintViolationException(
+      ConstraintViolationException ex) {
+    String errorMessages =
+        ex.getConstraintViolations().stream()
+            .map(v -> v.getMessage())
+            .collect(Collectors.joining(" / "));
+    log.warn("ConstraintViolation 오류 발생: {}", errorMessages);
     return ResponseEntity.badRequest().body(BaseResponse.error(400, errorMessages));
   }
 

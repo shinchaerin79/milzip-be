@@ -1,6 +1,7 @@
 package org.sku.milzip.domain.auth.service;
 
 import java.util.Arrays;
+import java.util.Optional;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,11 +26,14 @@ import org.sku.milzip.domain.user.entity.UserStatus;
 import org.sku.milzip.domain.user.repository.UserRepository;
 import org.sku.milzip.global.config.properties.JwtProperties;
 import org.sku.milzip.global.exception.CustomException;
+import org.sku.milzip.global.s3.enums.PathName;
+import org.sku.milzip.global.s3.service.S3AsyncService;
 import org.sku.milzip.global.security.CustomUserDetails;
 import org.sku.milzip.global.security.jwt.JwtProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +54,7 @@ public class AuthService {
   private final JwtProvider jwtProvider;
   private final JwtProperties jwtProperties;
   private final PasswordEncoder passwordEncoder;
+  private final Optional<S3AsyncService> s3AsyncService;
 
   @Transactional
   public void sendVerificationEmail(SendVerificationEmailRequest request, VerificationType type) {
@@ -90,7 +95,7 @@ public class AuthService {
   }
 
   @Transactional
-  public void signUp(SignUpRequest request) {
+  public void signUp(SignUpRequest request, MultipartFile profileImage) {
     log.info(
         "[AuthService] 회원가입 요청 - email: {}, nickname: {}", request.email(), request.nickname());
 
@@ -121,6 +126,15 @@ public class AuthService {
                 request.nickname(),
                 request.name()));
     user.activateEmail();
+
+    if (profileImage != null && !profileImage.isEmpty()) {
+      String imageUrl =
+          s3AsyncService.map(s3 -> s3.uploadFile(PathName.PROFILE, profileImage)).orElse(null);
+      if (imageUrl != null) {
+        user.updateProfileImage(imageUrl);
+      }
+    }
+
     emailVerificationRepository.deleteByEmailAndType(request.email(), VerificationType.SIGNUP);
 
     log.info("[AuthService] 회원가입 완료 - userId: {}, email: {}", user.getId(), user.getEmail());

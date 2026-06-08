@@ -39,6 +39,9 @@ public class UserResponse {
   @Schema(description = "임시 비밀번호 여부", example = "false")
   private boolean temporaryPassword;
 
+  @Schema(description = "프로필 이미지 URL")
+  private String profileImageUrl;
+
   public static UserResponse from(User user) {
     return new UserResponse(
         user.getId(),
@@ -48,6 +51,7 @@ public class UserResponse {
         user.getStatus(),
         user.getAuthType(),
         user.getMilitaryStatus(),
-        user.isTemporaryPassword());
+        user.isTemporaryPassword(),
+        user.getProfileImageUrl());
   }
 }

@@ -152,6 +152,9 @@ public class ReviewController {
           - goodPoints: 좋았던 점 (복수 선택, 선택 사항)
           - content: 텍스트 리뷰 (선택 사항, 500자 이내)
 
+          **Parameters**
+          - images: 리뷰 이미지 (선택, 최대 3개)
+
           **Error**
           - STO4041: 존재하지 않는 매장
           - REV4091: 이미 해당 매장에 리뷰를 작성한 경우
@@ -219,7 +222,11 @@ public class ReviewController {
       @Parameter(description = "텍스트 리뷰 (선택, 500자 이내)")
           @RequestParam(required = false)
           @Size(max = 500)
-          String content) {
+          String content,
+      @Parameter(description = "리뷰 이미지 (선택, 최대 3개)")
+          @RequestParam(required = false)
+          @Size(max = 3, message = "이미지는 최대 3개까지 첨부할 수 있습니다.")
+          List<MultipartFile> images) {
     ReviewCreateRequest request =
         ReviewCreateRequest.builder()
             .rating(rating)
@@ -231,7 +238,7 @@ public class ReviewController {
             .goodPoints(goodPoints)
             .content(content)
             .build();
-    return BaseResponse.success(reviewService.createReview(storeId, email, request));
+    return BaseResponse.success(reviewService.createReview(storeId, email, request, images));
   }
 
   @Operation(
@@ -251,6 +258,9 @@ public class ReviewController {
           - visitWith: 동행자 (COUPLE / FAMILY / FRIEND / ALONE)
           - goodPoints: 좋았던 점 (복수 선택, 선택 사항)
           - content: 텍스트 리뷰 (선택 사항, 500자 이내)
+
+          **Parameters**
+          - images: 새 리뷰 이미지 (선택, 최대 3개 / 전송 시 기존 이미지 교체)
 
           **Error**
           - STO4041: 존재하지 않는 매장
@@ -322,7 +332,11 @@ public class ReviewController {
       @Parameter(description = "텍스트 리뷰 (선택, 500자 이내)")
           @RequestParam(required = false)
           @Size(max = 500)
-          String content) {
+          String content,
+      @Parameter(description = "새 리뷰 이미지 (선택, 최대 3개 / 전송 시 기존 이미지 교체)")
+          @RequestParam(required = false)
+          @Size(max = 3, message = "이미지는 최대 3개까지 첨부할 수 있습니다.")
+          List<MultipartFile> images) {
     ReviewCreateRequest request =
         ReviewCreateRequest.builder()
             .rating(rating)
@@ -334,7 +348,8 @@ public class ReviewController {
             .goodPoints(goodPoints)
             .content(content)
             .build();
-    return BaseResponse.success(reviewService.updateReview(storeId, reviewId, email, request));
+    return BaseResponse.success(
+        reviewService.updateReview(storeId, reviewId, email, request, images));
   }
 
   @Operation(
