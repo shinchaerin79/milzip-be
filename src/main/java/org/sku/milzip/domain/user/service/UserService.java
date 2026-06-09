@@ -4,17 +4,27 @@ import java.util.List;
 import java.util.Optional;
 
 import org.sku.milzip.domain.auth.exception.AuthErrorCode;
+import org.sku.milzip.domain.benefit.entity.Benefit;
+import org.sku.milzip.domain.benefit.entity.Tmo;
+import org.sku.milzip.domain.benefit.repository.BenefitRepository;
+import org.sku.milzip.domain.benefit.repository.TmoRepository;
 import org.sku.milzip.domain.review.dto.response.ReviewResponse;
 import org.sku.milzip.domain.review.repository.ReviewRepository;
 import org.sku.milzip.domain.store.entity.Store;
 import org.sku.milzip.domain.store.exception.StoreErrorCode;
 import org.sku.milzip.domain.store.repository.StoreRepository;
+import org.sku.milzip.domain.user.dto.response.BenefitFavoriteResponse;
 import org.sku.milzip.domain.user.dto.response.FavoriteResponse;
+import org.sku.milzip.domain.user.dto.response.TmoFavoriteResponse;
 import org.sku.milzip.domain.user.dto.response.UserResponse;
+import org.sku.milzip.domain.user.entity.BenefitFavorite;
 import org.sku.milzip.domain.user.entity.Favorite;
+import org.sku.milzip.domain.user.entity.TmoFavorite;
 import org.sku.milzip.domain.user.entity.User;
 import org.sku.milzip.domain.user.exception.UserErrorCode;
+import org.sku.milzip.domain.user.repository.BenefitFavoriteRepository;
 import org.sku.milzip.domain.user.repository.FavoriteRepository;
+import org.sku.milzip.domain.user.repository.TmoFavoriteRepository;
 import org.sku.milzip.domain.user.repository.UserRepository;
 import org.sku.milzip.global.common.PageResponse;
 import org.sku.milzip.global.exception.CustomException;
@@ -38,6 +48,10 @@ public class UserService {
   private final UserRepository userRepository;
   private final StoreRepository storeRepository;
   private final FavoriteRepository favoriteRepository;
+  private final BenefitRepository benefitRepository;
+  private final TmoRepository tmoRepository;
+  private final BenefitFavoriteRepository benefitFavoriteRepository;
+  private final TmoFavoriteRepository tmoFavoriteRepository;
   private final ReviewRepository reviewRepository;
   private final Optional<S3AsyncService> s3AsyncService;
   private final Optional<S3Service> s3Service;
@@ -88,6 +102,77 @@ public class UserService {
             .findByUserIdAndStoreId(user.getId(), storeId)
             .orElseThrow(() -> new CustomException(UserErrorCode.FAVORITE_NOT_FOUND));
     favoriteRepository.delete(favorite);
+  }
+
+  // 혜택 즐겨찾기
+
+  @Transactional(readOnly = true)
+  public List<BenefitFavoriteResponse> getBenefitFavorites(String email) {
+    User user = getUser(email);
+    return benefitFavoriteRepository.findByUserIdWithBenefit(user.getId()).stream()
+        .map(BenefitFavoriteResponse::from)
+        .toList();
+  }
+
+  @Transactional
+  public BenefitFavoriteResponse addBenefitFavorite(String email, Long benefitId) {
+    User user = getUser(email);
+    Benefit benefit =
+        benefitRepository
+            .findById(benefitId)
+            .orElseThrow(() -> new CustomException(UserErrorCode.BENEFIT_FAVORITE_NOT_FOUND));
+
+    if (benefitFavoriteRepository.existsByUserIdAndBenefitId(user.getId(), benefitId)) {
+      throw new CustomException(UserErrorCode.BENEFIT_FAVORITE_ALREADY_EXISTS);
+    }
+
+    return BenefitFavoriteResponse.from(
+        benefitFavoriteRepository.save(BenefitFavorite.create(user, benefit)));
+  }
+
+  @Transactional
+  public void removeBenefitFavorite(String email, Long benefitId) {
+    User user = getUser(email);
+    BenefitFavorite bf =
+        benefitFavoriteRepository
+            .findByUserIdAndBenefitId(user.getId(), benefitId)
+            .orElseThrow(() -> new CustomException(UserErrorCode.BENEFIT_FAVORITE_NOT_FOUND));
+    benefitFavoriteRepository.delete(bf);
+  }
+
+  // TMO 즐겨찾기
+
+  @Transactional(readOnly = true)
+  public List<TmoFavoriteResponse> getTmoFavorites(String email) {
+    User user = getUser(email);
+    return tmoFavoriteRepository.findByUserIdWithTmo(user.getId()).stream()
+        .map(TmoFavoriteResponse::from)
+        .toList();
+  }
+
+  @Transactional
+  public TmoFavoriteResponse addTmoFavorite(String email, Long tmoId) {
+    User user = getUser(email);
+    Tmo tmo =
+        tmoRepository
+            .findById(tmoId)
+            .orElseThrow(() -> new CustomException(UserErrorCode.TMO_FAVORITE_NOT_FOUND));
+
+    if (tmoFavoriteRepository.existsByUserIdAndTmoId(user.getId(), tmoId)) {
+      throw new CustomException(UserErrorCode.TMO_FAVORITE_ALREADY_EXISTS);
+    }
+
+    return TmoFavoriteResponse.from(tmoFavoriteRepository.save(TmoFavorite.create(user, tmo)));
+  }
+
+  @Transactional
+  public void removeTmoFavorite(String email, Long tmoId) {
+    User user = getUser(email);
+    TmoFavorite tf =
+        tmoFavoriteRepository
+            .findByUserIdAndTmoId(user.getId(), tmoId)
+            .orElseThrow(() -> new CustomException(UserErrorCode.TMO_FAVORITE_NOT_FOUND));
+    tmoFavoriteRepository.delete(tf);
   }
 
   // 내 리뷰

@@ -3,7 +3,9 @@ package org.sku.milzip.domain.user.controller;
 import java.util.List;
 
 import org.sku.milzip.domain.review.dto.response.ReviewResponse;
+import org.sku.milzip.domain.user.dto.response.BenefitFavoriteResponse;
 import org.sku.milzip.domain.user.dto.response.FavoriteResponse;
+import org.sku.milzip.domain.user.dto.response.TmoFavoriteResponse;
 import org.sku.milzip.domain.user.dto.response.UserResponse;
 import org.sku.milzip.domain.user.service.UserService;
 import org.sku.milzip.global.common.BaseResponse;
@@ -162,6 +164,81 @@ public class UserController {
       @AuthenticationPrincipal String email,
       @Parameter(description = "매장 ID") @PathVariable Long storeId) {
     userService.removeFavorite(email, storeId);
+    return BaseResponse.success(null);
+  }
+
+  // 혜택 즐겨찾기
+
+  @Operation(
+      summary = "[ 사용자 | 토큰 O | 즐겨찾기 혜택 목록 조회 ]",
+      security = @SecurityRequirement(name = "bearerAuth"),
+      description = "영화관·놀이공원·자기계발 즐겨찾기 목록을 반환합니다.")
+  @GetMapping("/favorites/benefits")
+  @PreAuthorize("isAuthenticated()")
+  public BaseResponse<List<BenefitFavoriteResponse>> getBenefitFavorites(
+      @AuthenticationPrincipal String email) {
+    return BaseResponse.success(userService.getBenefitFavorites(email));
+  }
+
+  @Operation(
+      summary = "[ 사용자 | 토큰 O | 즐겨찾기 혜택 추가 ]",
+      security = @SecurityRequirement(name = "bearerAuth"),
+      description = "**Error**\n- USR4042: 존재하지 않는 혜택\n- USR4094: 이미 즐겨찾기에 추가된 혜택")
+  @PostMapping("/favorites/benefits/{benefitId}")
+  @PreAuthorize("isAuthenticated()")
+  public BaseResponse<BenefitFavoriteResponse> addBenefitFavorite(
+      @AuthenticationPrincipal String email,
+      @Parameter(description = "혜택 ID") @PathVariable Long benefitId) {
+    return BaseResponse.success(userService.addBenefitFavorite(email, benefitId));
+  }
+
+  @Operation(
+      summary = "[ 사용자 | 토큰 O | 즐겨찾기 혜택 해제 ]",
+      security = @SecurityRequirement(name = "bearerAuth"),
+      description = "**Error**\n- USR4042: 즐겨찾기 내역 없음")
+  @DeleteMapping("/favorites/benefits/{benefitId}")
+  @PreAuthorize("isAuthenticated()")
+  public BaseResponse<Void> removeBenefitFavorite(
+      @AuthenticationPrincipal String email,
+      @Parameter(description = "혜택 ID") @PathVariable Long benefitId) {
+    userService.removeBenefitFavorite(email, benefitId);
+    return BaseResponse.success(null);
+  }
+
+  // TMO 즐겨찾기
+
+  @Operation(
+      summary = "[ 사용자 | 토큰 O | 즐겨찾기 TMO 목록 조회 ]",
+      security = @SecurityRequirement(name = "bearerAuth"))
+  @GetMapping("/favorites/tmos")
+  @PreAuthorize("isAuthenticated()")
+  public BaseResponse<List<TmoFavoriteResponse>> getTmoFavorites(
+      @AuthenticationPrincipal String email) {
+    return BaseResponse.success(userService.getTmoFavorites(email));
+  }
+
+  @Operation(
+      summary = "[ 사용자 | 토큰 O | 즐겨찾기 TMO 추가 ]",
+      security = @SecurityRequirement(name = "bearerAuth"),
+      description = "**Error**\n- USR4043: 존재하지 않는 TMO\n- USR4095: 이미 즐겨찾기에 추가된 TMO")
+  @PostMapping("/favorites/tmos/{tmoId}")
+  @PreAuthorize("isAuthenticated()")
+  public BaseResponse<TmoFavoriteResponse> addTmoFavorite(
+      @AuthenticationPrincipal String email,
+      @Parameter(description = "TMO ID") @PathVariable Long tmoId) {
+    return BaseResponse.success(userService.addTmoFavorite(email, tmoId));
+  }
+
+  @Operation(
+      summary = "[ 사용자 | 토큰 O | 즐겨찾기 TMO 해제 ]",
+      security = @SecurityRequirement(name = "bearerAuth"),
+      description = "**Error**\n- USR4043: 즐겨찾기 내역 없음")
+  @DeleteMapping("/favorites/tmos/{tmoId}")
+  @PreAuthorize("isAuthenticated()")
+  public BaseResponse<Void> removeTmoFavorite(
+      @AuthenticationPrincipal String email,
+      @Parameter(description = "TMO ID") @PathVariable Long tmoId) {
+    userService.removeTmoFavorite(email, tmoId);
     return BaseResponse.success(null);
   }
 
