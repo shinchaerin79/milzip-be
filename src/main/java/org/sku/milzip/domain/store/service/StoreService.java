@@ -15,7 +15,6 @@ import org.sku.milzip.domain.store.repository.StoreRepository;
 import org.sku.milzip.global.common.PageResponse;
 import org.sku.milzip.global.exception.CustomException;
 import org.sku.milzip.global.util.GeoUtils;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -41,14 +40,23 @@ public class StoreService {
       return getStoresSortedByDistance(category, page, size, lat, lng);
     }
 
-    Pageable pageable = buildPageable(page, size, sortBy);
+    if (category == null) {
+      Pageable pageable = buildPageable(page, size, sortBy);
+      return PageResponse.from(
+          storeRepository.findAllWithBenefits(pageable).map(StoreListItemResponse::from));
+    }
 
-    Page<Store> stores =
-        category == null
-            ? storeRepository.findAllWithBenefits(pageable)
-            : storeRepository.findByCategoryWithBenefits(category, pageable);
+    List<StoreCategory> dbCategories = StoreCategory.dbCategoriesFor(category);
+    List<Store> allMatching =
+        storeRepository.findAllByCategoriesWithBenefitsList(dbCategories).stream()
+            .filter(s -> StoreCategory.resolve(s.getCategory(), s.getName()) == category)
+            .toList();
 
-    return PageResponse.from(stores.map(StoreListItemResponse::from));
+    int start = (int) buildPageable(page, size, sortBy).getOffset();
+    int end = Math.min(start + size, allMatching.size());
+    List<Store> paged = start >= allMatching.size() ? List.of() : allMatching.subList(start, end);
+    return PageResponse.of(
+        paged.stream().map(StoreListItemResponse::from).toList(), page, size, allMatching.size());
   }
 
   @Transactional
@@ -65,10 +73,16 @@ public class StoreService {
   private PageResponse<StoreListItemResponse> getStoresSortedByDistance(
       StoreCategory category, int page, int size, double lat, double lng) {
 
-    List<Store> stores =
-        category == null
-            ? storeRepository.findAllWithLatLng()
-            : storeRepository.findByCategoryWithLatLng(category);
+    List<Store> stores;
+    if (category == null) {
+      stores = storeRepository.findAllWithLatLng();
+    } else {
+      List<StoreCategory> dbCategories = StoreCategory.dbCategoriesFor(category);
+      stores =
+          storeRepository.findByCategoriesWithLatLng(dbCategories).stream()
+              .filter(s -> StoreCategory.resolve(s.getCategory(), s.getName()) == category)
+              .toList();
+    }
 
     List<StoreListItemResponse> sorted =
         stores.stream()

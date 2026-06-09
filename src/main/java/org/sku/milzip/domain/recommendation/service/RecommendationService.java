@@ -84,14 +84,19 @@ public class RecommendationService {
 
   private List<Store> fetchStores(StoreCategory category, Double lat, Double lng) {
     boolean withLatLng = lat != null && lng != null;
-    if (withLatLng) {
-      return category == null
+    if (category == null) {
+      return withLatLng
           ? storeRepository.findAllWithLatLng()
-          : storeRepository.findByCategoryWithLatLng(category);
+          : storeRepository.findAllWithBenefitsList();
     }
-    return category == null
-        ? storeRepository.findAllWithBenefitsList()
-        : storeRepository.findAllByCategoryWithBenefitsList(category);
+    List<StoreCategory> dbCategories = StoreCategory.dbCategoriesFor(category);
+    List<Store> raw =
+        withLatLng
+            ? storeRepository.findByCategoriesWithLatLng(dbCategories)
+            : storeRepository.findAllByCategoriesWithBenefitsList(dbCategories);
+    return raw.stream()
+        .filter(s -> StoreCategory.resolve(s.getCategory(), s.getName()) == category)
+        .toList();
   }
 
   private QuickRecommendationResponse buildWithTravel(Store store, double lat, double lng) {

@@ -81,7 +81,7 @@ public class StoreListItemResponse {
     return new StoreListItemResponse(
         store.getId(),
         store.getName(),
-        store.getCategory(),
+        StoreCategory.resolve(store.getCategory(), store.getName()),
         store.getAddress(),
         store.getLatitude(),
         store.getLongitude(),
