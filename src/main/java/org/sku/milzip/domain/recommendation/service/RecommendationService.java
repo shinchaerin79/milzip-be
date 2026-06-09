@@ -299,21 +299,33 @@ public class RecommendationService {
   }
 
   private Comparator<QuickRecommendationResponse> comparator(String sortBy) {
+    if ("distance".equals(sortBy)) {
+      return Comparator.comparingDouble(
+          r -> r.getDistanceKm() != null ? r.getDistanceKm() : Double.MAX_VALUE);
+    }
     if ("discount".equals(sortBy)) {
       return Comparator.comparingInt(
-              (QuickRecommendationResponse r) ->
-                  r.getMaxDiscountRate() != null ? r.getMaxDiscountRate() : 0)
+              (QuickRecommendationResponse r) -> discountPercent(r.getMaxDiscountRate()))
           .reversed()
-          .thenComparingDouble(r -> r.getDistanceKm() != null ? r.getDistanceKm() : 0);
+          .thenComparingDouble(
+              r -> r.getDistanceKm() != null ? r.getDistanceKm() : Double.MAX_VALUE);
     }
-    // 추천순: 할인율 60% + 거리 근접도 40% 가중 점수
+    // 추천순: 퍼센트 할인율(0~100) 정규화 × 0.6 + 거리 근접도 정규화 × 0.4
+    // - 할인율: 100원 초과(원 단위) 매장은 0으로 처리해 퍼센트 단위만 반영
+    // - 근접도: 30 / (distanceKm + 0.5) → 가까울수록 최대 60, 멀수록 0에 수렴
     return Comparator.comparingDouble(
             (QuickRecommendationResponse r) -> {
-              double discountScore = r.getMaxDiscountRate() != null ? r.getMaxDiscountRate() : 0;
+              double discountScore = discountPercent(r.getMaxDiscountRate());
               double proximityScore =
                   r.getDistanceKm() != null ? 30.0 / (r.getDistanceKm() + 0.5) : 0;
               return discountScore * 0.6 + proximityScore * 0.4;
             })
         .reversed();
+  }
+
+  /** 할인율이 퍼센트(0~100) 단위일 때만 반환하고, 100 초과(원 단위)이면 0으로 처리합니다. */
+  private int discountPercent(Integer maxDiscountRate) {
+    if (maxDiscountRate == null || maxDiscountRate > 100) return 0;
+    return maxDiscountRate;
   }
 }

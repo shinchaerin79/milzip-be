@@ -2,6 +2,8 @@ package org.sku.milzip.domain.user.controller;
 
 import java.util.List;
 
+import jakarta.validation.constraints.Size;
+
 import org.sku.milzip.domain.review.dto.response.ReviewResponse;
 import org.sku.milzip.domain.user.dto.response.BenefitFavoriteResponse;
 import org.sku.milzip.domain.user.dto.response.FavoriteResponse;
@@ -61,6 +63,18 @@ public class UserController {
   @GetMapping("/me")
   public BaseResponse<UserResponse> getMyInfo(@AuthenticationPrincipal String email) {
     return BaseResponse.success(userService.getMyInfo(email));
+  }
+
+  @Operation(
+      summary = "[ 사용자 | 토큰 O | 닉네임 변경 ]",
+      security = @SecurityRequirement(name = "bearerAuth"),
+      description = "**Error**\n- USR4093: 이미 사용 중인 닉네임 (409)")
+  @PatchMapping("/me/nickname")
+  @PreAuthorize("isAuthenticated()")
+  public BaseResponse<UserResponse> updateNickname(
+      @AuthenticationPrincipal String email,
+      @Parameter(description = "새 닉네임") @RequestParam @Size(min = 2, max = 20) String nickname) {
+    return BaseResponse.success(userService.updateNickname(email, nickname));
   }
 
   @Operation(

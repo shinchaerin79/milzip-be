@@ -11,7 +11,8 @@ import lombok.Getter;
 public class CodefProperties {
 
   private String baseUrl;
-  private String accessToken;
+  private String clientId;
+  private String clientSecret;
   private String publicKey;
 
   public String getMilitaryUrl() {

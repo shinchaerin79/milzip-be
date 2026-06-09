@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "군인 인증 요청")
 public record MilitaryVerificationRequest(
-    @Schema(description = "주민등록번호 13자리 (숫자만)", example = "0307094080912")
+    @Schema(description = "주민등록번호 13자리 (숫자만)", example = "1234567891012")
         @NotBlank
         @Pattern(regexp = "\\d{13}", message = "주민등록번호는 13자리 숫자여야 합니다.")
         String identity,

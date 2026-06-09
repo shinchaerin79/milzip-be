@@ -187,6 +187,18 @@ public class UserService {
             .map(ReviewResponse::from));
   }
 
+  // 닉네임 수정
+
+  @Transactional
+  public UserResponse updateNickname(String email, String nickname) {
+    User user = getUser(email);
+    if (userRepository.existsByNickname(nickname)) {
+      throw new CustomException(UserErrorCode.NICKNAME_ALREADY_EXISTS);
+    }
+    user.updateNickname(nickname);
+    return UserResponse.from(user);
+  }
+
   // 프로필 이미지
 
   @Transactional

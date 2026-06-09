@@ -52,7 +52,7 @@ public class MilitaryVerificationController {
           - 이 값들은 2차 요청(confirm)에서 사용됩니다
 
           **Request Body**
-          - identity: 주민등록번호 13자리 (숫자만, 예: 0307094080912)
+          - identity: 주민등록번호 13자리 (숫자만, 예: 1234567891012)
           - phoneNo: 카카오톡 등록 전화번호 (예: 01012345678)
           - addrSido: 주민등록상 시도 (예: 서울특별시)
           - addrSigungu: 주민등록상 시군구 (예: 강남구)

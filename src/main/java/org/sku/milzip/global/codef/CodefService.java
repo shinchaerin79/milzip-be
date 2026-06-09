@@ -15,9 +15,9 @@ import javax.crypto.Cipher;
 import org.sku.milzip.domain.military.exception.MilitaryErrorCode;
 import org.sku.milzip.global.exception.CustomException;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,26 +30,49 @@ import tools.jackson.databind.ObjectMapper;
 public class CodefService {
 
   private final CodefProperties codefProperties;
+  private final CodefTokenManager codefTokenManager;
   private final RestClient restClient;
   private final ObjectMapper objectMapper;
 
   public JsonNode callMilitary(Map<String, Object> requestBody) {
+    String url = codefProperties.getMilitaryUrl();
+    log.info("[CodefService] 병적증명서 API 요청 - URL: {}", url);
+    log.info("[CodefService] 병적증명서 API 요청 바디: {}", requestBody);
     try {
-      String responseBody =
+      String token = codefTokenManager.getToken();
+      log.info(
+          "[CodefService] 사용할 토큰 (앞 20자): {}",
+          token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "null");
+
+      ResponseEntity<String> response =
           restClient
               .post()
-              .uri(codefProperties.getMilitaryUrl())
-              .header("Authorization", "Bearer " + codefProperties.getAccessToken())
+              .uri(url)
+              .header("Authorization", "Bearer " + token)
               .contentType(MediaType.APPLICATION_JSON)
               .body(requestBody)
               .retrieve()
-              .body(String.class);
+              .toEntity(String.class);
 
+      log.info("[CodefService] 병적증명서 API HTTP 상태코드: {}", response.getStatusCode());
+      log.info("[CodefService] 병적증명서 API 응답 헤더: {}", response.getHeaders());
+      String responseBody = response.getBody();
+      log.info("[CodefService] 병적증명서 API 원본 응답: {}", responseBody);
+      if (responseBody == null) {
+        log.error("[CodefService] 병적증명서 API 응답 바디가 null");
+        throw new CustomException(MilitaryErrorCode.CODEF_API_FAILED);
+      }
       String decoded = URLDecoder.decode(responseBody, StandardCharsets.UTF_8);
-      log.debug("[CodefService] 병적증명서 API 응답: {}", decoded);
+      log.info("[CodefService] 병적증명서 API 디코딩 응답: {}", decoded);
       return objectMapper.readTree(decoded);
-    } catch (RestClientException e) {
-      log.error("[CodefService] 병적증명서 API 호출 실패", e);
+    } catch (CustomException e) {
+      throw e;
+    } catch (Exception e) {
+      log.error(
+          "[CodefService] 병적증명서 API 호출 실패 - 예외 타입: {}, 메시지: {}",
+          e.getClass().getSimpleName(),
+          e.getMessage(),
+          e);
       throw new CustomException(MilitaryErrorCode.CODEF_API_FAILED);
     }
   }

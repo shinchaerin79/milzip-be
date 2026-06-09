@@ -39,11 +39,13 @@ public class RecommendationController {
           **Query Parameters**
           - lat / lng: 현재 위치 (미입력 시 거리 필터링 없이 할인율순 반환)
           - category: FOOD / CAFE / LEISURE / ACCOMMODATION / ETC (미입력 시 전체)
-          - sortBy: recommend (추천순, 기본값) / discount (할인율순)
+          - sortBy: recommend (추천순, 기본값) / discount (할인율순) / distance (거리순)
           - page / size: 페이지네이션 (기본값 0 / 20)
 
-          **추천순 점수 계산**
-          - score = 할인율 × 0.6 + 근접도 × 0.4
+          **추천순 점수 계산 (sortBy=recommend 또는 미입력)**
+          - score = 퍼센트 할인율 × 0.6 + 거리 근접도 × 0.4
+          - 할인율: 0~100% 범위 값만 반영 (100 초과 원 단위 할인은 0으로 처리)
+          - 거리 근접도: 30 / (distanceKm + 0.5) — 가까울수록 높은 점수
 
           **이동시간 계산**
           - 도보 (4 km/h 기준, 직선거리 × 1.3 보정): 이동시간 ≤ 30분이면 도보
@@ -62,13 +64,13 @@ public class RecommendationController {
       @Parameter(description = "카테고리 (FOOD / CAFE / LEISURE / ACCOMMODATION / ETC)")
           @RequestParam(required = false)
           StoreCategory category,
-      @Parameter(description = "정렬 기준 (recommend: 추천순, discount: 할인율순)")
+      @Parameter(description = "정렬 기준 (recommend: 추천순(기본), discount: 할인율순, distance: 거리순)")
           @RequestParam(required = false)
           String sortBy,
-      @Parameter(description = "위도 (거리 기반 필터링 시 필수)", example = "37.89257701967812")
+      @Parameter(description = "위도 (거리 기반 필터링 시 필수)", example = "37.8585")
           @RequestParam(required = false)
           Double lat,
-      @Parameter(description = "경도 (거리 기반 필터링 시 필수)", example = "127.19789570920469")
+      @Parameter(description = "경도 (거리 기반 필터링 시 필수)", example = "126.7852")
           @RequestParam(required = false)
           Double lng) {
     return BaseResponse.success(

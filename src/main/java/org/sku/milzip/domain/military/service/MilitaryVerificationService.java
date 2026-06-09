@@ -63,6 +63,12 @@ public class MilitaryVerificationService {
     String resultCode = response.path("result").path("code").asText();
     log.info("[MilitaryVerificationService] CODEF 1차 응답 코드: {}", resultCode);
 
+    if (RESULT_CODE_SUCCESS.equals(resultCode)) {
+      processResult(response.path("data"), user);
+      log.info("[MilitaryVerificationService] CODEF 직접 응답 처리 완료 - userId: {}", user.getId());
+      return;
+    }
+
     if (!RESULT_CODE_TWO_WAY.equals(resultCode)) {
       log.error("[MilitaryVerificationService] CODEF 1차 호출 실패 - code: {}", resultCode);
       throw new CustomException(MilitaryErrorCode.CODEF_API_FAILED);
@@ -137,7 +143,12 @@ public class MilitaryVerificationService {
       throw new CustomException(MilitaryErrorCode.CODEF_API_FAILED);
     }
 
-    String serviceYN = response.path("data").path("resServiceYN").asText();
+    processResult(response.path("data"), user);
+    militaryVerificationRepository.delete(verification);
+  }
+
+  private void processResult(JsonNode data, User user) {
+    String serviceYN = data.path("resServiceYN").asText();
     log.info("[MilitaryVerificationService] 복무 여부: {}", serviceYN);
 
     if (SERVICE_YN_ACTIVE.equals(serviceYN)) {
@@ -146,7 +157,5 @@ public class MilitaryVerificationService {
     } else {
       log.info("[MilitaryVerificationService] 현역 복무자 아님 - userId: {}", user.getId());
     }
-
-    militaryVerificationRepository.delete(verification);
   }
 }
