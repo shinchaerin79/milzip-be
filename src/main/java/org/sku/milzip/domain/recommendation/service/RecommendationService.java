@@ -34,8 +34,10 @@ import lombok.extern.slf4j.Slf4j;
 public class RecommendationService {
 
   private static final double WALKING_SPEED_KMH = 4.0;
-  private static final double DRIVING_SPEED_KMH = 50.0;
-  private static final double ROAD_DISTANCE_FACTOR = 1.3; // 직선 거리 → 실제 도보 거리 보정
+  private static final double DRIVING_SPEED_KMH = 40.0;
+  private static final double ROAD_DISTANCE_FACTOR = 1.3; // 도보 직선거리 → 실제 도보거리 보정
+  private static final double ROAD_DISTANCE_FACTOR_DRIVING =
+      1.5; // 차량 직선거리 → 실제 도로거리 보정 (산악/도심 우회로 반영)
   private static final int MAX_WALKING_MINUTES = 30;
   private static final int MAX_DRIVING_MINUTES = 60;
   private static final int MAX_GPT_RECOMMENDATIONS = 10;
@@ -84,20 +86,20 @@ public class RecommendationService {
     boolean withLatLng = lat != null && lng != null;
     if (withLatLng) {
       return category == null
-          ? storeRepository.findMilitaryBenefitWithLatLng()
-          : storeRepository.findMilitaryBenefitByCategoryWithLatLng(category);
+          ? storeRepository.findAllWithLatLng()
+          : storeRepository.findByCategoryWithLatLng(category);
     }
     return category == null
-        ? storeRepository.findAllMilitaryBenefit()
-        : storeRepository.findMilitaryBenefitByCategory(category);
+        ? storeRepository.findAllWithBenefitsList()
+        : storeRepository.findAllByCategoryWithBenefitsList(category);
   }
 
   private QuickRecommendationResponse buildWithTravel(Store store, double lat, double lng) {
     double distanceKm =
         GeoUtils.calculateDistanceKm(lat, lng, store.getLatitude(), store.getLongitude());
 
-    double walkingMinutes = distanceKm / WALKING_SPEED_KMH * 60;
-    double drivingMinutes = distanceKm / DRIVING_SPEED_KMH * 60;
+    double walkingMinutes = distanceKm * ROAD_DISTANCE_FACTOR / WALKING_SPEED_KMH * 60;
+    double drivingMinutes = distanceKm * ROAD_DISTANCE_FACTOR_DRIVING / DRIVING_SPEED_KMH * 60;
 
     if (walkingMinutes <= MAX_WALKING_MINUTES) {
       return QuickRecommendationResponse.from(

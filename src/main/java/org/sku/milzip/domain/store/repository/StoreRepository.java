@@ -25,6 +25,12 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
   Page<Store> findByCategoryWithBenefits(
       @Param("category") StoreCategory category, Pageable pageable);
 
+  @Query("SELECT DISTINCT s FROM Store s LEFT JOIN FETCH s.benefits")
+  List<Store> findAllWithBenefitsList();
+
+  @Query("SELECT DISTINCT s FROM Store s LEFT JOIN FETCH s.benefits WHERE s.category = :category")
+  List<Store> findAllByCategoryWithBenefitsList(@Param("category") StoreCategory category);
+
   @Query(
       "SELECT s FROM Store s LEFT JOIN FETCH s.benefits WHERE s.latitude IS NOT NULL AND s.longitude IS NOT NULL")
   List<Store> findAllWithLatLng();

@@ -34,7 +34,7 @@ public class RecommendationController {
       description =
           """
           **Purpose**
-          - 사용자 위치 기반으로 이동시간 1시간 이내의 군장병 혜택 매장을 추천합니다.
+          - 사용자 위치 기반으로 이동시간 1시간 이내의 매장을 카테고리별로 추천합니다.
 
           **Query Parameters**
           - lat / lng: 현재 위치 (미입력 시 거리 필터링 없이 할인율순 반환)
@@ -46,8 +46,8 @@ public class RecommendationController {
           - score = 할인율 × 0.6 + 근접도 × 0.4
 
           **이동시간 계산**
-          - 도보 (4 km/h 기준): 이동시간 ≤ 60분이면 도보
-          - 차량 (30 km/h 기준): 도보 초과 시 차량으로 재계산, 60분 초과 매장은 제외
+          - 도보 (4 km/h 기준, 직선거리 × 1.3 보정): 이동시간 ≤ 30분이면 도보
+          - 차량 (40 km/h 기준, 직선거리 × 1.5 보정): 도보 초과 시 차량으로 재계산, 60분 초과 매장은 제외
 
           **Returns**
           - travelTimeMinutes: 예상 이동시간 (분)
