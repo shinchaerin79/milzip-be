@@ -268,6 +268,32 @@ public class AuthService {
   }
 
   @Transactional
+  public void logout(HttpServletRequest request, HttpServletResponse response) {
+    log.info("[AuthService] 로그아웃 요청");
+
+    if (request.getCookies() != null) {
+      Arrays.stream(request.getCookies())
+          .filter(c -> REFRESH_TOKEN_COOKIE.equals(c.getName()))
+          .map(Cookie::getValue)
+          .findFirst()
+          .ifPresent(
+              token -> {
+                refreshTokenRepository
+                    .findByToken(token)
+                    .ifPresent(
+                        rt -> {
+                          refreshTokenRepository.delete(rt);
+                          log.info("[AuthService] 리프레시 토큰 삭제 완료 - memberId: {}", rt.getMemberId());
+                        });
+              });
+    }
+
+    clearCookie(response, ACCESS_TOKEN_COOKIE);
+    clearCookie(response, REFRESH_TOKEN_COOKIE);
+    log.info("[AuthService] 로그아웃 완료 - 쿠키 삭제");
+  }
+
+  @Transactional
   public TokenResponse kakaoLogin(String code, HttpServletResponse response) {
     log.info("[AuthService] 카카오 로그인 요청");
 
@@ -326,6 +352,15 @@ public class AuthService {
     cookie.setSecure(jwtProperties.isSecure());
     cookie.setPath("/");
     cookie.setMaxAge((int) (jwtProperties.getRefreshExpiration() / 1000));
+    response.addCookie(cookie);
+  }
+
+  private void clearCookie(HttpServletResponse response, String name) {
+    Cookie cookie = new Cookie(name, null);
+    cookie.setHttpOnly(true);
+    cookie.setSecure(jwtProperties.isSecure());
+    cookie.setPath("/");
+    cookie.setMaxAge(0);
     response.addCookie(cookie);
   }
 

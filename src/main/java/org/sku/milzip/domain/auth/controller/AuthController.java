@@ -259,6 +259,25 @@ public class AuthController {
   }
 
   @Operation(
+      summary = "[ 사용자 | 토큰 O | 로그아웃 ]",
+      description =
+          """
+          **Purpose**
+          - 리프레시 토큰 삭제 및 쿠키 만료 처리
+
+          **Returns**
+          - message: "로그아웃되었습니다."
+
+          **Note**
+          - 리프레시 토큰 쿠키가 없어도 정상 처리됩니다
+          """)
+  @PostMapping("/logout")
+  public BaseResponse<Void> logout(HttpServletRequest request, HttpServletResponse response) {
+    authService.logout(request, response);
+    return BaseResponse.success("로그아웃되었습니다.", null);
+  }
+
+  @Operation(
       summary = "[ 비회원 | 토큰 X | 카카오 로그인 페이지로 이동 ]",
       description =
           """
