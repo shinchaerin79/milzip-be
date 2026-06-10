@@ -45,37 +45,65 @@ public class ReviewService {
   /** 리뷰 단건 조회 */
   @Transactional(readOnly = true)
   public ReviewResponse getReview(Long storeId, Long reviewId) {
+    log.debug("[ReviewService] 리뷰 단건 조회 - storeId: {}, reviewId: {}", storeId, reviewId);
     validateStore(storeId);
-    return reviewRepository
-        .findByStoreIdAndId(storeId, reviewId)
-        .map(ReviewResponse::from)
-        .orElseThrow(() -> new CustomException(ReviewErrorCode.REVIEW_NOT_FOUND));
+    ReviewResponse response =
+        reviewRepository
+            .findByStoreIdAndId(storeId, reviewId)
+            .map(ReviewResponse::from)
+            .orElseThrow(
+                () -> {
+                  log.warn("[ReviewService] 리뷰 없음 - storeId: {}, reviewId: {}", storeId, reviewId);
+                  return new CustomException(ReviewErrorCode.REVIEW_NOT_FOUND);
+                });
+    log.debug(
+        "[ReviewService] 리뷰 단건 조회 완료 - reviewId: {}, rating: {}", reviewId, response.getRating());
+    return response;
   }
 
   /** 내 리뷰 목록 조회 */
   @Transactional(readOnly = true)
   public PageResponse<ReviewResponse> getMyReviews(String email, int page, int size) {
+    log.debug("[ReviewService] 내 리뷰 목록 조회 - email: {}, page: {}, size: {}", email, page, size);
     User user = getUser(email);
     Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-    return PageResponse.from(
-        reviewRepository.findByUserId(user.getId(), pageable).map(ReviewResponse::from));
+    PageResponse<ReviewResponse> result =
+        PageResponse.from(
+            reviewRepository.findByUserId(user.getId(), pageable).map(ReviewResponse::from));
+    log.debug(
+        "[ReviewService] 내 리뷰 목록 조회 완료 - userId: {}, 총 {}건",
+        user.getId(),
+        result.getTotalElements());
+    return result;
   }
 
   /** 매장 리뷰 목록 조회 (VISIBLE 상태만, 최신순) */
   @Transactional(readOnly = true)
   public PageResponse<ReviewResponse> getReviews(Long storeId, int page, int size) {
+    log.debug("[ReviewService] 매장 리뷰 목록 조회 - storeId: {}, page: {}, size: {}", storeId, page, size);
     validateStore(storeId);
     Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-    return PageResponse.from(
-        reviewRepository
-            .findByStoreIdAndStatus(storeId, ReviewStatus.VISIBLE, pageable)
-            .map(ReviewResponse::from));
+    PageResponse<ReviewResponse> result =
+        PageResponse.from(
+            reviewRepository
+                .findByStoreIdAndStatus(storeId, ReviewStatus.VISIBLE, pageable)
+                .map(ReviewResponse::from));
+    log.debug(
+        "[ReviewService] 매장 리뷰 목록 조회 완료 - storeId: {}, 총 {}건", storeId, result.getTotalElements());
+    return result;
   }
 
   /** 리뷰 작성 */
   @Transactional
   public ReviewResponse createReview(
       Long storeId, String email, ReviewCreateRequest request, List<MultipartFile> images) {
+    log.info(
+        "[ReviewService] 리뷰 작성 시작 - storeId: {}, email: {}, rating: {}, imageCount: {}",
+        storeId,
+        email,
+        request.getRating(),
+        images == null ? 0 : images.size());
+
     Store store = validateStore(storeId);
     User user = getUser(email);
 
@@ -83,17 +111,37 @@ public class ReviewService {
     String receiptIdentifier = request.getReceiptIdentifier();
     if (receiptIdentifier != null
         && reviewRepository.existsByReceiptIdentifier(receiptIdentifier)) {
+      log.warn(
+          "[ReviewService] 중복 영수증으로 리뷰 작성 시도 - email: {}, receiptIdentifier: {}",
+          email,
+          receiptIdentifier);
       throw new CustomException(ReviewErrorCode.REVIEW_ALREADY_EXISTS);
     }
 
     // SOLDIER(군인 인증 완료)인 경우 혜택 여부 필수
     if (user.getRole() == UserRole.SOLDIER && request.getBenefitStatus() == null) {
+      log.warn("[ReviewService] SOLDIER 유저 혜택 여부 미입력 - userId: {}, email: {}", user.getId(), email);
       throw new CustomException(ReviewErrorCode.BENEFIT_STATUS_REQUIRED);
     }
 
     Review review = reviewRepository.save(Review.create(store, user, sanitize(user, request)));
+    log.debug("[ReviewService] 리뷰 저장 완료 - reviewId: {}", review.getId());
+
     List<String> imageUrls = uploadImages(images);
+    if (!imageUrls.isEmpty()) {
+      log.debug(
+          "[ReviewService] 리뷰 이미지 업로드 완료 - reviewId: {}, 업로드 {}장",
+          review.getId(),
+          imageUrls.size());
+    }
     review.updateImages(imageUrls);
+
+    log.info(
+        "[ReviewService] 리뷰 작성 완료 - reviewId: {}, storeId: {}, userId: {}, role: {}",
+        review.getId(),
+        storeId,
+        user.getId(),
+        user.getRole());
     return ReviewResponse.from(review);
   }
 
@@ -105,52 +153,114 @@ public class ReviewService {
       String email,
       ReviewCreateRequest request,
       List<MultipartFile> images) {
+    log.info(
+        "[ReviewService] 리뷰 수정 시작 - storeId: {}, reviewId: {}, email: {}, newRating: {}",
+        storeId,
+        reviewId,
+        email,
+        request.getRating());
+
     validateStore(storeId);
     User user = getUser(email);
     Review review = getReview(reviewId);
 
     if (!review.getUser().getId().equals(user.getId())) {
+      log.warn(
+          "[ReviewService] 리뷰 수정 권한 없음 - reviewId: {}, 요청자 userId: {}, 작성자 userId: {}",
+          reviewId,
+          user.getId(),
+          review.getUser().getId());
       throw new CustomException(ReviewErrorCode.REVIEW_FORBIDDEN);
     }
 
     // SOLDIER인 경우 혜택 여부 필수
     if (user.getRole() == UserRole.SOLDIER && request.getBenefitStatus() == null) {
+      log.warn(
+          "[ReviewService] SOLDIER 유저 혜택 여부 미입력 (수정) - userId: {}, reviewId: {}",
+          user.getId(),
+          reviewId);
       throw new CustomException(ReviewErrorCode.BENEFIT_STATUS_REQUIRED);
     }
 
+    int previousRating = review.getRating();
     review.update(sanitize(user, request));
+    log.debug(
+        "[ReviewService] 리뷰 내용 수정 - reviewId: {}, 별점 변경: {} → {}",
+        reviewId,
+        previousRating,
+        request.getRating());
 
     // images 파라미터가 전달된 경우에만 교체
     if (images != null) {
+      int previousImageCount = review.getImageUrls().size();
       deleteImages(review.getImageUrls());
-      review.updateImages(uploadImages(images));
+      List<String> newImageUrls = uploadImages(images);
+      review.updateImages(newImageUrls);
+      log.debug(
+          "[ReviewService] 리뷰 이미지 교체 - reviewId: {}, 이전 {}장 → 새 {}장",
+          reviewId,
+          previousImageCount,
+          newImageUrls.size());
     }
 
+    log.info("[ReviewService] 리뷰 수정 완료 - reviewId: {}, userId: {}", reviewId, user.getId());
     return ReviewResponse.from(review);
   }
 
   /** 리뷰 삭제 (본인만) */
   @Transactional
   public void deleteReview(Long storeId, Long reviewId, String email) {
+    log.info(
+        "[ReviewService] 리뷰 삭제 시작 - storeId: {}, reviewId: {}, email: {}",
+        storeId,
+        reviewId,
+        email);
+
     validateStore(storeId);
     User user = getUser(email);
     Review review = getReview(reviewId);
 
     if (!review.getUser().getId().equals(user.getId())) {
+      log.warn(
+          "[ReviewService] 리뷰 삭제 권한 없음 - reviewId: {}, 요청자 userId: {}, 작성자 userId: {}",
+          reviewId,
+          user.getId(),
+          review.getUser().getId());
       throw new CustomException(ReviewErrorCode.REVIEW_FORBIDDEN);
     }
 
+    int imageCount = review.getImageUrls().size();
     deleteImages(review.getImageUrls());
     reviewRepository.delete(review);
+
+    log.info(
+        "[ReviewService] 리뷰 삭제 완료 - reviewId: {}, storeId: {}, userId: {}, 삭제된 이미지: {}장",
+        reviewId,
+        storeId,
+        user.getId(),
+        imageCount);
   }
 
   /** 리뷰 숨김 처리 (관리자 전용) */
   @Transactional
   public ReviewResponse updateReviewStatus(
       Long storeId, Long reviewId, ReviewStatusRequest request) {
+    log.info(
+        "[ReviewService] 리뷰 상태 변경 시작 - storeId: {}, reviewId: {}, 요청 상태: {}",
+        storeId,
+        reviewId,
+        request.getStatus());
+
     validateStore(storeId);
     Review review = getReview(reviewId);
+    ReviewStatus previousStatus = review.getStatus();
     review.updateStatus(request.getStatus());
+
+    log.info(
+        "[ReviewService] 리뷰 상태 변경 완료 - reviewId: {}, 상태 변경: {} → {}",
+        reviewId,
+        previousStatus,
+        request.getStatus());
     return ReviewResponse.from(review);
   }
 

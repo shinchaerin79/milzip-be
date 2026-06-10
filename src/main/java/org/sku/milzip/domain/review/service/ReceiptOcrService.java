@@ -44,25 +44,33 @@ public class ReceiptOcrService {
    * <p>API: https://api.ncloud-docs.com/docs/ai-application-service-ocr-general
    */
   public ReceiptVerifyResponse verifyReceipt(Long storeId, MultipartFile receiptImage) {
+    log.info(
+        "[OCR] 영수증 검증 요청 - storeId: {}, fileName: {}, contentType: {}, fileSize: {}bytes",
+        storeId,
+        receiptImage.getOriginalFilename(),
+        receiptImage.getContentType(),
+        receiptImage.getSize());
+
     Store store =
         storeRepository
             .findById(storeId)
-            .orElseThrow(() -> new CustomException(StoreErrorCode.STORE_NOT_FOUND));
+            .orElseThrow(
+                () -> {
+                  log.warn("[OCR] 매장 없음 - storeId: {}", storeId);
+                  return new CustomException(StoreErrorCode.STORE_NOT_FOUND);
+                });
 
-    log.info(
-        "[OCR] 영수증 검증 요청 - storeId: {}, storeName: {}, fileSize: {}bytes",
-        storeId,
-        store.getName(),
-        receiptImage.getSize());
+    log.info("[OCR] 대상 매장 확인 - storeId: {}, storeName: {}", storeId, store.getName());
 
     String ocrText = callNaverClovaOcr(receiptImage);
-    log.info("[OCR] 전체 추출 텍스트:\n{}", ocrText);
+    log.debug("[OCR] 전체 추출 텍스트:\n{}", ocrText);
 
     String recognizedStoreName = extractStoreName(ocrText);
     boolean verified = isStoreNameMatch(store.getName(), recognizedStoreName);
 
     log.info(
-        "[OCR] 검증 결과 - 매장명: [{}], OCR 인식: [{}], 일치: {}",
+        "[OCR] 검증 결과 - storeId: {}, 매장명: [{}], OCR 인식: [{}], 일치: {}",
+        storeId,
         store.getName(),
         recognizedStoreName,
         verified);
@@ -85,16 +93,18 @@ public class ReceiptOcrService {
   private String callNaverClovaOcr(MultipartFile imageFile) {
     try {
       String requestId = UUID.randomUUID().toString();
+      log.debug("[OCR] Naver Clova API 호출 시작 - requestId: {}", requestId);
 
       byte[] imageBytes;
       String imageFormat;
       if (isHeic(imageFile)) {
-        log.info("[OCR] HEIC 감지 → JPEG 변환 중");
+        log.info("[OCR] HEIC 이미지 감지 → JPEG 변환 시작 - fileName: {}", imageFile.getOriginalFilename());
         imageBytes = convertHeicToJpeg(imageFile.getBytes());
         imageFormat = "jpeg";
       } else {
         imageBytes = imageFile.getBytes();
         imageFormat = resolveImageFormat(imageFile.getOriginalFilename());
+        log.debug("[OCR] 이미지 포맷 결정 - format: {}, size: {}bytes", imageFormat, imageBytes.length);
       }
 
       String base64Image = Base64.getEncoder().encodeToString(imageBytes);
@@ -105,6 +115,7 @@ public class ReceiptOcrService {
                   + "\"images\":[{\"format\":\"%s\",\"name\":\"receipt\",\"data\":\"%s\"}]}",
               requestId, System.currentTimeMillis(), imageFormat, base64Image);
 
+      log.debug("[OCR] API 요청 전송 - url: {}, requestId: {}", ocrInvokeUrl, requestId);
       String responseBody =
           RestClient.create()
               .post()
@@ -115,13 +126,21 @@ public class ReceiptOcrService {
               .retrieve()
               .body(String.class);
 
+      log.debug("[OCR] API 응답 수신 완료 - requestId: {}", requestId);
       return parseOcrText(responseBody);
 
     } catch (IOException e) {
-      log.error("[OCR] 이미지 파일 읽기 실패: {}", e.getMessage());
+      log.error(
+          "[OCR] 이미지 파일 읽기 실패 - fileName: {}, error: {}",
+          imageFile.getOriginalFilename(),
+          e.getMessage());
       throw new CustomException(ReviewErrorCode.OCR_API_ERROR);
     } catch (Exception e) {
-      log.error("[OCR] API 호출 실패: {}", e.getMessage());
+      log.error(
+          "[OCR] API 호출 실패 - fileName: {}, error: {}",
+          imageFile.getOriginalFilename(),
+          e.getMessage(),
+          e);
       throw new CustomException(ReviewErrorCode.OCR_API_ERROR);
     }
   }
@@ -131,13 +150,19 @@ public class ReceiptOcrService {
     try {
       JsonNode root = objectMapper.readTree(responseBody);
       JsonNode image = root.path("images").get(0);
+      String inferResult = image.path("inferResult").asText();
 
-      if (!"SUCCESS".equals(image.path("inferResult").asText())) {
-        log.warn("[OCR] 이미지 인식 실패: {}", image.path("message").asText());
+      if (!"SUCCESS".equals(inferResult)) {
+        log.warn(
+            "[OCR] 이미지 인식 실패 - inferResult: {}, message: {}",
+            inferResult,
+            image.path("message").asText());
         throw new CustomException(ReviewErrorCode.OCR_API_ERROR);
       }
 
       JsonNode fields = image.path("fields");
+      log.debug("[OCR] 추출된 필드 수: {}개", fields.size());
+
       StringBuilder sb = new StringBuilder();
       for (JsonNode field : fields) {
         sb.append(field.path("inferText").asText());
@@ -147,12 +172,14 @@ public class ReceiptOcrService {
           sb.append(" ");
         }
       }
-      return sb.toString().trim();
+      String result = sb.toString().trim();
+      log.debug("[OCR] 텍스트 파싱 완료 - 추출 문자 수: {}자", result.length());
+      return result;
 
     } catch (CustomException e) {
       throw e;
     } catch (Exception e) {
-      log.error("[OCR] 응답 파싱 실패: {}", e.getMessage());
+      log.error("[OCR] 응답 파싱 실패 - error: {}", e.getMessage(), e);
       throw new CustomException(ReviewErrorCode.OCR_API_ERROR);
     }
   }
@@ -258,11 +285,13 @@ public class ReceiptOcrService {
       int exitCode = process.waitFor();
 
       if (exitCode != 0) {
+        log.error("[OCR] HEIC → JPEG 변환 실패 - exitCode: {}", exitCode);
         throw new IOException("HEIC 변환 실패 (exitCode=" + exitCode + ")");
       }
 
       byte[] result = Files.readAllBytes(tempJpeg);
-      log.info("[OCR] HEIC → JPEG 변환 완료: {}bytes", result.length);
+      log.info(
+          "[OCR] HEIC → JPEG 변환 완료 - 원본: {}bytes → 변환: {}bytes", heicBytes.length, result.length);
       return result;
 
     } catch (InterruptedException e) {

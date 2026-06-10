@@ -37,6 +37,7 @@ public class KakaoAuthService {
   }
 
   public KakaoTokenResponse exchangeCodeForToken(String code) {
+    log.info("[KakaoAuthService] 카카오 인가코드 → 액세스 토큰 교환 요청");
     MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
     params.add("grant_type", "authorization_code");
     params.add("client_id", kakaoProperties.getClientId());
@@ -44,29 +45,36 @@ public class KakaoAuthService {
     params.add("code", code);
 
     try {
-      return restClient
-          .post()
-          .uri(kakaoProperties.getTokenUrl())
-          .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-          .body(params)
-          .retrieve()
-          .body(KakaoTokenResponse.class);
+      KakaoTokenResponse response =
+          restClient
+              .post()
+              .uri(kakaoProperties.getTokenUrl())
+              .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+              .body(params)
+              .retrieve()
+              .body(KakaoTokenResponse.class);
+      log.info("[KakaoAuthService] 카카오 액세스 토큰 교환 완료");
+      return response;
     } catch (RestClientException e) {
-      log.error("[KakaoAuthService] 카카오 토큰 교환 실패 - code: {}", code, e);
+      log.error("[KakaoAuthService] 카카오 토큰 교환 실패 - code: {}, error: {}", code, e.getMessage(), e);
       throw new CustomException(AuthErrorCode.KAKAO_LOGIN_FAILED);
     }
   }
 
   public KakaoUserInfoResponse getUserInfo(String kakaoAccessToken) {
+    log.debug("[KakaoAuthService] 카카오 사용자 정보 조회 요청");
     try {
-      return restClient
-          .get()
-          .uri(kakaoProperties.getUserInfoUrl())
-          .header("Authorization", "Bearer " + kakaoAccessToken)
-          .retrieve()
-          .body(KakaoUserInfoResponse.class);
+      KakaoUserInfoResponse response =
+          restClient
+              .get()
+              .uri(kakaoProperties.getUserInfoUrl())
+              .header("Authorization", "Bearer " + kakaoAccessToken)
+              .retrieve()
+              .body(KakaoUserInfoResponse.class);
+      log.info("[KakaoAuthService] 카카오 사용자 정보 조회 완료 - socialId: {}", response.socialId());
+      return response;
     } catch (RestClientException e) {
-      log.error("[KakaoAuthService] 카카오 사용자 정보 조회 실패", e);
+      log.error("[KakaoAuthService] 카카오 사용자 정보 조회 실패 - error: {}", e.getMessage(), e);
       throw new CustomException(AuthErrorCode.KAKAO_LOGIN_FAILED);
     }
   }

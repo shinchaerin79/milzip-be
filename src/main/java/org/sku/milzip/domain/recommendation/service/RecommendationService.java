@@ -50,8 +50,16 @@ public class RecommendationService {
   @Transactional(readOnly = true)
   public PageResponse<QuickRecommendationResponse> getQuickRecommendations(
       StoreCategory category, int page, int size, String sortBy, Double lat, Double lng) {
+    log.debug(
+        "[RecommendationService] 빠른 추천 조회 - category: {}, page: {}, size: {}, sortBy: {}, hasLocation: {}",
+        category,
+        page,
+        size,
+        sortBy,
+        lat != null && lng != null);
 
     List<Store> stores = fetchStores(category, lat, lng);
+    log.debug("[RecommendationService] 빠른 추천 후보 매장 수: {}", stores.size());
 
     List<QuickRecommendationResponse> result;
 
@@ -62,6 +70,7 @@ public class RecommendationService {
               .filter(Objects::nonNull)
               .sorted(comparator(sortBy))
               .toList();
+      log.debug("[RecommendationService] 거리 필터링 후 매장 수: {} → {}", stores.size(), result.size());
     } else {
       result =
           stores.stream()
@@ -79,6 +88,8 @@ public class RecommendationService {
     List<QuickRecommendationResponse> content =
         start >= result.size() ? List.of() : result.subList(start, end);
 
+    log.debug(
+        "[RecommendationService] 빠른 추천 완료 - 결과 총 {}건, 현재 페이지 {}건", result.size(), content.size());
     return PageResponse.of(content, page, size, result.size());
   }
 
@@ -121,6 +132,13 @@ public class RecommendationService {
 
   @Transactional(readOnly = true)
   public AiRecommendationResponse getAiRecommendations(AiRecommendationRequest request) {
+    log.info(
+        "[RecommendationService] AI 추천 요청 - categories: {}, companion: {}, hasLocation: {}, freeText: {}",
+        request.getCategories(),
+        request.getCompanion(),
+        request.getLat() != null && request.getLng() != null,
+        request.getFreeText());
+
     // 1. 쿼리 텍스트 구성 및 임베딩 생성
     String queryText = buildQueryText(request);
     log.debug("[RecommendationService] AI 추천 쿼리: {}", queryText);
@@ -158,6 +176,16 @@ public class RecommendationService {
 
     List<StoreCategory> missingCategories =
         requiredCategories.stream().filter(cat -> !candidatesByCategory.containsKey(cat)).toList();
+
+    for (Map.Entry<StoreCategory, List<Store>> entry : candidatesByCategory.entrySet()) {
+      log.debug(
+          "[RecommendationService] 카테고리별 후보 수 - category: {}, count: {}",
+          entry.getKey(),
+          entry.getValue().size());
+    }
+    if (!missingCategories.isEmpty()) {
+      log.info("[RecommendationService] 후보 없는 카테고리 - {}", missingCategories);
+    }
 
     if (candidatesByCategory.isEmpty()) {
       log.info("[RecommendationService] AI 추천 후보 없음 (임베딩 미생성 또는 이동 가능 범위 내 매장 없음)");
@@ -311,6 +339,10 @@ public class RecommendationService {
 
       courses.add(CourseResponse.builder().courseNumber(courseNum++).stores(items).build());
     }
+    log.info(
+        "[RecommendationService] AI 추천 완료 - 코스 {}개 구성, 누락 카테고리: {}",
+        courses.size(),
+        missingCategories);
     return AiRecommendationResponse.builder()
         .courses(courses)
         .missingCategories(missingCategories)
