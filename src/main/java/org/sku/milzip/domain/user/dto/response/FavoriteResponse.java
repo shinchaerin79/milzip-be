@@ -29,16 +29,20 @@ public class FavoriteResponse {
   @Schema(description = "주소")
   private String address;
 
+  @Schema(description = "썸네일 이미지 URL")
+  private String thumbnailUrl;
+
   @Schema(description = "즐겨찾기 추가 일시")
   private LocalDateTime createdAt;
 
-  public static FavoriteResponse from(Favorite favorite) {
+  public static FavoriteResponse from(Favorite favorite, String thumbnailUrl) {
     return FavoriteResponse.builder()
         .id(favorite.getId())
         .storeId(favorite.getStore().getId())
         .storeName(favorite.getStore().getName())
         .category(favorite.getStore().getCategory())
         .address(favorite.getStore().getAddress())
+        .thumbnailUrl(thumbnailUrl)
         .createdAt(favorite.getCreatedAt())
         .build();
   }

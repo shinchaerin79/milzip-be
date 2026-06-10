@@ -1,6 +1,7 @@
 package org.sku.milzip.domain.user.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.sku.milzip.domain.auth.exception.AuthErrorCode;
@@ -83,9 +84,12 @@ public class UserService {
   public List<FavoriteResponse> getFavorites(String email) {
     log.debug("[UserService] 매장 즐겨찾기 목록 조회 - email: {}", email);
     User user = getUser(email);
+    List<Favorite> favorites = favoriteRepository.findByUserIdWithStore(user.getId());
+    List<Long> storeIds = favorites.stream().map(f -> f.getStore().getId()).toList();
+    Map<Long, String> thumbnailMap = storeRepository.findThumbnailMapByStoreIds(storeIds);
     List<FavoriteResponse> result =
-        favoriteRepository.findByUserIdWithStore(user.getId()).stream()
-            .map(FavoriteResponse::from)
+        favorites.stream()
+            .map(f -> FavoriteResponse.from(f, thumbnailMap.get(f.getStore().getId())))
             .toList();
     log.debug("[UserService] 매장 즐겨찾기 목록 조회 완료 - userId: {}, {}건", user.getId(), result.size());
     return result;
@@ -109,8 +113,9 @@ public class UserService {
       throw new CustomException(UserErrorCode.FAVORITE_ALREADY_EXISTS);
     }
 
-    FavoriteResponse response =
-        FavoriteResponse.from(favoriteRepository.save(Favorite.create(user, store)));
+    Favorite saved = favoriteRepository.save(Favorite.create(user, store));
+    Map<Long, String> thumbnailMap = storeRepository.findThumbnailMapByStoreIds(List.of(storeId));
+    FavoriteResponse response = FavoriteResponse.from(saved, thumbnailMap.get(storeId));
     log.info("[UserService] 매장 즐겨찾기 추가 완료 - userId: {}, storeId: {}", user.getId(), storeId);
     return response;
   }

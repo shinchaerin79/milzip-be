@@ -1,7 +1,9 @@
 package org.sku.milzip.domain.store.repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.sku.milzip.domain.store.entity.Store;
 import org.sku.milzip.domain.store.entity.StoreCategory;
@@ -74,4 +76,13 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
   List<Store> findTopByViewCount(Pageable pageable);
 
   boolean existsByNameAndAddress(String name, String address);
+
+  @Query(
+      "SELECT i.store.id, i.imageUrl FROM StoreImage i WHERE i.store.id IN :storeIds AND i.displayOrder = (SELECT MIN(i2.displayOrder) FROM StoreImage i2 WHERE i2.store.id = i.store.id)")
+  List<Object[]> findThumbnailsByStoreIds(@Param("storeIds") List<Long> storeIds);
+
+  default Map<Long, String> findThumbnailMapByStoreIds(List<Long> storeIds) {
+    return findThumbnailsByStoreIds(storeIds).stream()
+        .collect(Collectors.toMap(row -> (Long) row[0], row -> (String) row[1]));
+  }
 }
