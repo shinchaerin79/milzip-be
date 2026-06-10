@@ -167,40 +167,73 @@ public class RecommendationService {
           .build();
     }
 
-    // 3. 거리 기반 코스 구성: 카테고리별 후보를 거리 오름차순 정렬 후
-    //    1순위 매장들로 코스1, 2순위 매장들로 코스2, 3순위 매장들로 코스3
-    //    좌표 없으면 유사도 순서 유지
+    // 3. 코스 구성
+    //    위치 정보 + 카테고리 2개 이상: FOOD를 앵커로 삼고 각 FOOD 주변에서 가장 가까운 동반 카테고리 매장 매칭
+    //    그 외: 유저 기준 거리 오름차순 정렬 후 순위별 묶음
     boolean hasLocation = request.getLat() != null && request.getLng() != null;
 
     Map<StoreCategory, List<Store>> rankedByCategory = new LinkedHashMap<>();
     for (Map.Entry<StoreCategory, List<Store>> entry : candidatesByCategory.entrySet()) {
-      List<Store> sorted =
-          hasLocation
-              ? entry.getValue().stream()
-                  .sorted(
-                      Comparator.comparingDouble(
-                          s ->
-                              s.getLatitude() != null
-                                  ? GeoUtils.calculateDistanceKm(
-                                      request.getLat(), request.getLng(),
-                                      s.getLatitude(), s.getLongitude())
-                                  : Double.MAX_VALUE))
-                  .toList()
-              : entry.getValue();
+      List<Store> candidates = entry.getValue();
+      List<Store> sorted;
+      if (hasLocation && candidates.size() > 1) {
+        // 유사도 순위(벡터 검색 결과 순서)와 거리 순위를 각각 0~1 정규화 후 6:4 가중합
+        int n = candidates.size();
+
+        // 유사도 스코어: 앞쪽일수록 높음 (index 0 → 1.0, index n-1 → 0.0)
+        Map<Store, Double> simScore = new LinkedHashMap<>();
+        for (int i = 0; i < n; i++) {
+          simScore.put(candidates.get(i), n == 1 ? 1.0 : (double) (n - 1 - i) / (n - 1));
+        }
+
+        // 거리 스코어: 가까울수록 높음 (가장 가까운 매장 → 1.0, 가장 먼 매장 → 0.0)
+        List<Store> byDist =
+            candidates.stream()
+                .sorted(
+                    Comparator.comparingDouble(
+                        s ->
+                            s.getLatitude() != null
+                                ? GeoUtils.calculateDistanceKm(
+                                    request.getLat(), request.getLng(),
+                                    s.getLatitude(), s.getLongitude())
+                                : Double.MAX_VALUE))
+                .toList();
+        Map<Store, Double> distScore = new LinkedHashMap<>();
+        for (int i = 0; i < n; i++) {
+          distScore.put(byDist.get(i), n == 1 ? 1.0 : (double) (n - 1 - i) / (n - 1));
+        }
+
+        sorted =
+            candidates.stream()
+                .sorted(
+                    Comparator.comparingDouble(
+                            (Store s) ->
+                                simScore.getOrDefault(s, 0.0) * 0.6
+                                    + distScore.getOrDefault(s, 0.0) * 0.4)
+                        .reversed())
+                .toList();
+      } else {
+        sorted = candidates;
+      }
       rankedByCategory.put(entry.getKey(), sorted);
     }
 
-    int maxCourses =
-        Math.min(3, rankedByCategory.values().stream().mapToInt(List::size).min().orElse(1));
-    List<Map<StoreCategory, Store>> courseList = new ArrayList<>();
-    for (int i = 0; i < maxCourses; i++) {
-      Map<StoreCategory, Store> course = new LinkedHashMap<>();
-      for (Map.Entry<StoreCategory, List<Store>> entry : rankedByCategory.entrySet()) {
-        if (i < entry.getValue().size()) {
-          course.put(entry.getKey(), entry.getValue().get(i));
+    List<Map<StoreCategory, Store>> courseList;
+    if (hasLocation && rankedByCategory.size() > 1) {
+      courseList = buildCoursesWithAnchor(rankedByCategory);
+    } else {
+      int maxCourses =
+          Math.min(3, rankedByCategory.values().stream().mapToInt(List::size).min().orElse(1));
+      courseList = new ArrayList<>();
+      for (int i = 0; i < maxCourses; i++) {
+        Map<StoreCategory, Store> course = new LinkedHashMap<>();
+        for (Map.Entry<StoreCategory, List<Store>> entry : rankedByCategory.entrySet()) {
+          if (i < entry.getValue().size()) {
+            course.put(entry.getKey(), entry.getValue().get(i));
+          }
         }
+        if (!course.isEmpty()) courseList.add(course);
       }
-      if (!course.isEmpty()) courseList.add(course);
     }
 
     // 4. GPT 추천 이유 생성 (선택된 매장 전체)
@@ -282,6 +315,67 @@ public class RecommendationService {
         .courses(courses)
         .missingCategories(missingCategories)
         .build();
+  }
+
+  /**
+   * FOOD를 앵커로, 각 FOOD 주변에서 가장 가까운 동반 카테고리 매장을 매칭해 코스를 구성합니다. rankedByCategory의 각 카테고리 리스트는 이미 유저 기준
+   * 거리 오름차순 정렬된 상태입니다.
+   */
+  private List<Map<StoreCategory, Store>> buildCoursesWithAnchor(
+      Map<StoreCategory, List<Store>> rankedByCategory) {
+
+    // 앵커: FOOD가 있으면 FOOD, 없으면 첫 번째 카테고리
+    StoreCategory anchorCategory =
+        rankedByCategory.containsKey(StoreCategory.FOOD)
+            ? StoreCategory.FOOD
+            : rankedByCategory.keySet().iterator().next();
+
+    List<Store> anchors = rankedByCategory.get(anchorCategory);
+    List<StoreCategory> companions =
+        rankedByCategory.keySet().stream().filter(c -> c != anchorCategory).toList();
+
+    // 동반 카테고리별 남은 후보 풀 (이미 사용된 매장 제거용)
+    Map<StoreCategory, List<Store>> pool = new LinkedHashMap<>();
+    companions.forEach(c -> pool.put(c, new ArrayList<>(rankedByCategory.get(c))));
+
+    List<Map<StoreCategory, Store>> courses = new ArrayList<>();
+    int maxCourses = Math.min(3, anchors.size());
+
+    for (int i = 0; i < maxCourses; i++) {
+      Store anchor = anchors.get(i);
+      Map<StoreCategory, Store> course = new LinkedHashMap<>();
+      course.put(anchorCategory, anchor);
+
+      for (StoreCategory cat : companions) {
+        List<Store> available = pool.get(cat);
+        if (available.isEmpty()) continue;
+
+        Store nearest;
+        if (anchor.getLatitude() != null && anchor.getLongitude() != null) {
+          // 앵커 매장에서 가장 가까운 동반 매장
+          nearest =
+              available.stream()
+                  .filter(s -> s.getLatitude() != null && s.getLongitude() != null)
+                  .min(
+                      Comparator.comparingDouble(
+                          s ->
+                              GeoUtils.calculateDistanceKm(
+                                  anchor.getLatitude(), anchor.getLongitude(),
+                                  s.getLatitude(), s.getLongitude())))
+                  .orElse(available.get(0));
+        } else {
+          // 앵커 좌표 없으면 유저 기준 가장 가까운 것(이미 정렬돼 있으므로 첫 번째)
+          nearest = available.get(0);
+        }
+
+        course.put(cat, nearest);
+        available.remove(nearest);
+      }
+
+      courses.add(course);
+    }
+
+    return courses;
   }
 
   /** 주소에서 첫 번째 행정구역(시/도)을 추출합니다. */

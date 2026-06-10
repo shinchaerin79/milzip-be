@@ -33,10 +33,10 @@ public class AiRecommendationItemResponse {
   @Schema(description = "전화번호", example = "02-1234-5678")
   private String phone;
 
-  @Schema(description = "위도", example = "37.89257701967812")
+  @Schema(description = "위도", example = "37.9162")
   private Double latitude;
 
-  @Schema(description = "경도", example = "127.19789570920469")
+  @Schema(description = "경도", example = "127.1948")
   private Double longitude;
 
   @Schema(description = "최대 할인율 (%)", example = "20")

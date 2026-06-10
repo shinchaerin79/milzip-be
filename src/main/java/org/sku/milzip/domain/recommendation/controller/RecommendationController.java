@@ -67,10 +67,10 @@ public class RecommendationController {
       @Parameter(description = "정렬 기준 (recommend: 추천순(기본), discount: 할인율순, distance: 거리순)")
           @RequestParam(required = false)
           String sortBy,
-      @Parameter(description = "위도 (거리 기반 필터링 시 필수)", example = "37.8585")
+      @Parameter(description = "위도 (거리 기반 필터링 시 필수)", example = "37.9162")
           @RequestParam(required = false)
           Double lat,
-      @Parameter(description = "경도 (거리 기반 필터링 시 필수)", example = "126.7852")
+      @Parameter(description = "경도 (거리 기반 필터링 시 필수)", example = "127.1948")
           @RequestParam(required = false)
           Double lng) {
     return BaseResponse.success(

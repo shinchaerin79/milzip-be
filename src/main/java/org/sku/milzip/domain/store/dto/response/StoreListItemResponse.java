@@ -29,10 +29,10 @@ public class StoreListItemResponse {
   @Schema(description = "주소", example = "경기도 포천시 신북면 아트밸리로 42")
   private String address;
 
-  @Schema(description = "위도", example = "37.89257701967812")
+  @Schema(description = "위도", example = "37.9162")
   private Double latitude;
 
-  @Schema(description = "경도", example = "127.19789570920469")
+  @Schema(description = "경도", example = "127.1948")
   private Double longitude;
 
   @Schema(description = "전화번호", example = "031-534-9784")

@@ -52,9 +52,9 @@ public class BenefitController {
           """)
   @GetMapping("/tmo")
   public BaseResponse<List<TmoResponse>> getTmos(
-      @Parameter(description = "위도", example = "37.89257701967812") @RequestParam(required = false)
+      @Parameter(description = "위도", example = "37.9162") @RequestParam(required = false)
           Double lat,
-      @Parameter(description = "경도", example = "127.19789570920469") @RequestParam(required = false)
+      @Parameter(description = "경도", example = "127.1948") @RequestParam(required = false)
           Double lng) {
     return BaseResponse.success(benefitService.getTmos(lat, lng));
   }

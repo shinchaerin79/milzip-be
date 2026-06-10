@@ -81,14 +81,24 @@ public class VectorStoreRepository {
       List<Float> embedding, StoreCategory category, int limit) {
     String vectorStr = toVectorString(embedding);
 
-    List<Long> ids =
-        jdbcTemplate.queryForList(
-            "SELECT id FROM stores WHERE embedding IS NOT NULL AND category = ? "
-                + "ORDER BY embedding <=> (?)::vector LIMIT ?",
-            Long.class,
-            category.name(),
-            vectorStr,
-            limit);
+    // CAFE 요청 시 DB의 FOOD 매장도 포함해서 조회 (이름 키워드로 후처리 필터링)
+    List<StoreCategory> dbCategories = StoreCategory.dbCategoriesFor(category);
+    // 카테고리 확장(CAFE→FOOD+CAFE) 시 후처리 필터 손실을 감안해 넉넉히 조회
+    int fetchLimit = dbCategories.size() > 1 ? limit * 10 : limit;
+    String placeholders =
+        dbCategories.stream().map(c -> "?").collect(java.util.stream.Collectors.joining(", "));
+    String sql =
+        "SELECT id FROM stores WHERE embedding IS NOT NULL AND category IN ("
+            + placeholders
+            + ") "
+            + "ORDER BY embedding <=> (?)::vector LIMIT ?";
+
+    List<Object> params = new ArrayList<>();
+    dbCategories.forEach(c -> params.add(c.name()));
+    params.add(vectorStr);
+    params.add(fetchLimit);
+
+    List<Long> ids = jdbcTemplate.queryForList(sql, Long.class, params.toArray());
 
     if (ids.isEmpty()) {
       log.debug("[VectorStoreRepository] 카테고리={} 검색 결과 없음", category);
@@ -102,7 +112,9 @@ public class VectorStoreRepository {
     List<Store> ordered = new ArrayList<>(ids.size());
     for (Long id : ids) {
       Store s = storeMap.get(id);
-      if (s != null) ordered.add(s);
+      if (s != null && StoreCategory.resolve(s.getCategory(), s.getName()) == category) {
+        ordered.add(s);
+      }
     }
     log.debug("[VectorStoreRepository] 카테고리={} 유사 매장 {}건 조회", category, ordered.size());
     return ordered;
