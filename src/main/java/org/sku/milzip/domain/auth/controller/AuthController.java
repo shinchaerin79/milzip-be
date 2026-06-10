@@ -314,7 +314,9 @@ public class AuthController {
   public void kakaoCallback(
       @RequestParam String code, HttpServletRequest request, HttpServletResponse response)
       throws IOException {
-    authService.kakaoLogin(code, response);
-    response.sendRedirect(kakaoAuthService.buildFrontendRedirectUrl());
+    TokenResponse tokenResponse = authService.kakaoLogin(code, response);
+    String redirectUrl = kakaoAuthService.buildFrontendRedirectUrl()
+        + "?accessToken=" + tokenResponse.getAccessToken();
+    response.sendRedirect(redirectUrl);
   }
 }
