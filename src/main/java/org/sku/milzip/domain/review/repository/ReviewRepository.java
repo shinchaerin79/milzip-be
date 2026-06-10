@@ -1,5 +1,6 @@
 package org.sku.milzip.domain.review.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.sku.milzip.domain.review.entity.Review;
@@ -27,4 +28,9 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
   @Query(
       "SELECT r FROM Review r JOIN FETCH r.store WHERE r.user.id = :userId ORDER BY r.createdAt DESC")
   Page<Review> findByUserId(@Param("userId") Long userId, Pageable pageable);
+
+  @Query(
+      "SELECT gp, COUNT(gp) FROM Review r JOIN r.goodPoints gp WHERE r.store.id = :storeId AND r.status = :status GROUP BY gp")
+  List<Object[]> countGoodPointsByStoreId(
+      @Param("storeId") Long storeId, @Param("status") ReviewStatus status);
 }

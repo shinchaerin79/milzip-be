@@ -1,11 +1,15 @@
 package org.sku.milzip.domain.review.service;
 
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.sku.milzip.domain.review.dto.request.ReviewCreateRequest;
 import org.sku.milzip.domain.review.dto.request.ReviewStatusRequest;
+import org.sku.milzip.domain.review.dto.response.ReviewListResponse;
 import org.sku.milzip.domain.review.dto.response.ReviewResponse;
+import org.sku.milzip.domain.review.entity.GoodPoint;
 import org.sku.milzip.domain.review.entity.Review;
 import org.sku.milzip.domain.review.entity.ReviewStatus;
 import org.sku.milzip.domain.review.exception.ReviewErrorCode;
@@ -79,18 +83,24 @@ public class ReviewService {
 
   /** 매장 리뷰 목록 조회 (VISIBLE 상태만, 최신순) */
   @Transactional(readOnly = true)
-  public PageResponse<ReviewResponse> getReviews(Long storeId, int page, int size) {
+  public ReviewListResponse getReviews(Long storeId, int page, int size) {
     log.debug("[ReviewService] 매장 리뷰 목록 조회 - storeId: {}, page: {}, size: {}", storeId, page, size);
     validateStore(storeId);
     Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-    PageResponse<ReviewResponse> result =
+    PageResponse<ReviewResponse> reviews =
         PageResponse.from(
             reviewRepository
                 .findByStoreIdAndStatus(storeId, ReviewStatus.VISIBLE, pageable)
                 .map(ReviewResponse::from));
+
+    Map<GoodPoint, Long> goodPointCounts = new EnumMap<>(GoodPoint.class);
+    reviewRepository
+        .countGoodPointsByStoreId(storeId, ReviewStatus.VISIBLE)
+        .forEach(row -> goodPointCounts.put((GoodPoint) row[0], (Long) row[1]));
+
     log.debug(
-        "[ReviewService] 매장 리뷰 목록 조회 완료 - storeId: {}, 총 {}건", storeId, result.getTotalElements());
-    return result;
+        "[ReviewService] 매장 리뷰 목록 조회 완료 - storeId: {}, 총 {}건", storeId, reviews.getTotalElements());
+    return ReviewListResponse.builder().reviews(reviews).goodPointCounts(goodPointCounts).build();
   }
 
   /** 리뷰 작성 */

@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Size;
 import org.sku.milzip.domain.review.dto.request.ReviewCreateRequest;
 import org.sku.milzip.domain.review.dto.request.ReviewStatusRequest;
 import org.sku.milzip.domain.review.dto.response.ReceiptVerifyResponse;
+import org.sku.milzip.domain.review.dto.response.ReviewListResponse;
 import org.sku.milzip.domain.review.dto.response.ReviewResponse;
 import org.sku.milzip.domain.review.entity.BenefitStatus;
 import org.sku.milzip.domain.review.entity.GoodPoint;
@@ -21,7 +22,6 @@ import org.sku.milzip.domain.review.entity.WaitTime;
 import org.sku.milzip.domain.review.service.ReceiptOcrService;
 import org.sku.milzip.domain.review.service.ReviewService;
 import org.sku.milzip.global.common.BaseResponse;
-import org.sku.milzip.global.common.PageResponse;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -120,7 +120,7 @@ public class ReviewController {
           - STO4041: 존재하지 않는 매장
           """)
   @GetMapping
-  public BaseResponse<PageResponse<ReviewResponse>> getReviews(
+  public BaseResponse<ReviewListResponse> getReviews(
       @Parameter(description = "매장 ID") @PathVariable Long storeId,
       @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") @RequestParam(defaultValue = "0")
           int page,
