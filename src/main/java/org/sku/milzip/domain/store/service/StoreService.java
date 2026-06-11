@@ -76,7 +76,7 @@ public class StoreService {
               : storeRepository.findAllByCategoriesWithBenefitsList(dbCategories);
       candidates =
           raw.stream()
-              .filter(s -> StoreCategory.resolve(s.getCategory(), s.getName()) == category)
+              .filter(s -> StoreCategory.matchesFilter(s.getCategory(), s.getName(), category))
               .toList();
     }
 
@@ -142,7 +142,7 @@ public class StoreService {
               : storeRepository.findByCategoriesWithLatLng(dbCategories);
       stores =
           raw.stream()
-              .filter(s -> StoreCategory.resolve(s.getCategory(), s.getName()) == category)
+              .filter(s -> StoreCategory.matchesFilter(s.getCategory(), s.getName(), category))
               .toList();
     }
 
