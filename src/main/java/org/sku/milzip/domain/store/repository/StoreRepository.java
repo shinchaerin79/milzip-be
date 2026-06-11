@@ -69,6 +69,24 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
       "SELECT s FROM Store s LEFT JOIN FETCH s.benefits WHERE s.category IN :categories AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL")
   List<Store> findByCategoriesWithLatLng(@Param("categories") List<StoreCategory> categories);
 
+  @Query(
+      "SELECT DISTINCT s FROM Store s LEFT JOIN FETCH s.benefits WHERE LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+  List<Store> findByKeywordWithBenefitsList(@Param("keyword") String keyword);
+
+  @Query(
+      "SELECT DISTINCT s FROM Store s LEFT JOIN FETCH s.benefits WHERE s.category IN :categories AND LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+  List<Store> findByCategoriesAndKeywordWithBenefitsList(
+      @Param("categories") List<StoreCategory> categories, @Param("keyword") String keyword);
+
+  @Query(
+      "SELECT s FROM Store s LEFT JOIN FETCH s.benefits WHERE LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%')) AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL")
+  List<Store> findByKeywordWithLatLng(@Param("keyword") String keyword);
+
+  @Query(
+      "SELECT s FROM Store s LEFT JOIN FETCH s.benefits WHERE s.category IN :categories AND LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%')) AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL")
+  List<Store> findByCategoriesAndKeywordWithLatLng(
+      @Param("categories") List<StoreCategory> categories, @Param("keyword") String keyword);
+
   @Query("SELECT DISTINCT s FROM Store s LEFT JOIN FETCH s.benefits WHERE s.id IN :ids")
   List<Store> findAllByIdWithBenefits(@Param("ids") List<Long> ids);
 

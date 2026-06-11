@@ -33,21 +33,30 @@ public class StoreService {
 
   @Transactional(readOnly = true)
   public PageResponse<StoreListItemResponse> getStores(
-      StoreCategory category, int page, int size, String sortBy, Double lat, Double lng) {
+      StoreCategory category,
+      int page,
+      int size,
+      String sortBy,
+      Double lat,
+      Double lng,
+      Double radiusKm,
+      String keyword) {
+    boolean hasKeyword = keyword != null && !keyword.isBlank();
     log.debug(
-        "[StoreService] 매장 목록 조회 - category: {}, page: {}, size: {}, sortBy: {}, hasLocation: {}",
+        "[StoreService] 매장 목록 조회 - category: {}, page: {}, size: {}, hasLocation: {}, radiusKm: {}, keyword: {}",
         category,
         page,
         size,
-        sortBy,
-        lat != null && lng != null);
+        lat != null && lng != null,
+        radiusKm,
+        keyword);
 
-    // lat/lng가 있으면 sortBy 값에 관계없이 거리순으로 정렬
     if (lat != null && lng != null) {
-      return getStoresSortedByDistance(category, page, size, lat, lng);
+      return getStoresSortedByDistance(category, page, size, lat, lng, radiusKm, keyword);
     }
 
-    if (category == null) {
+    // 위치 없는 경우: 키워드/카테고리 없으면 DB 페이지네이션 최적화
+    if (category == null && !hasKeyword) {
       Pageable pageable = buildPageable(page, size, sortBy);
       PageResponse<StoreListItemResponse> result =
           PageResponse.from(
@@ -56,19 +65,36 @@ public class StoreService {
       return result;
     }
 
-    List<StoreCategory> dbCategories = StoreCategory.dbCategoriesFor(category);
-    List<Store> allMatching =
-        storeRepository.findAllByCategoriesWithBenefitsList(dbCategories).stream()
-            .filter(s -> StoreCategory.resolve(s.getCategory(), s.getName()) == category)
+    List<Store> candidates;
+    if (category == null) {
+      candidates = storeRepository.findByKeywordWithBenefitsList(keyword);
+    } else {
+      List<StoreCategory> dbCategories = StoreCategory.dbCategoriesFor(category);
+      List<Store> raw =
+          hasKeyword
+              ? storeRepository.findByCategoriesAndKeywordWithBenefitsList(dbCategories, keyword)
+              : storeRepository.findAllByCategoriesWithBenefitsList(dbCategories);
+      candidates =
+          raw.stream()
+              .filter(s -> StoreCategory.resolve(s.getCategory(), s.getName()) == category)
+              .toList();
+    }
+
+    List<Store> sorted =
+        candidates.stream()
+            .sorted(Comparator.comparingInt(Store::getViewCount).reversed())
             .toList();
 
-    int start = (int) buildPageable(page, size, sortBy).getOffset();
-    int end = Math.min(start + size, allMatching.size());
-    List<Store> paged = start >= allMatching.size() ? List.of() : allMatching.subList(start, end);
+    int start = page * size;
+    int end = Math.min(start + size, sorted.size());
+    List<Store> paged = start >= sorted.size() ? List.of() : sorted.subList(start, end);
     log.debug(
-        "[StoreService] 카테고리별 매장 목록 조회 완료 - category: {}, 총 {}건", category, allMatching.size());
+        "[StoreService] 매장 목록 조회 완료 - category: {}, keyword: {}, 총 {}건",
+        category,
+        keyword,
+        sorted.size());
     return PageResponse.of(
-        paged.stream().map(StoreListItemResponse::from).toList(), page, size, allMatching.size());
+        paged.stream().map(StoreListItemResponse::from).toList(), page, size, sorted.size());
   }
 
   @Transactional
@@ -93,35 +119,58 @@ public class StoreService {
   }
 
   private PageResponse<StoreListItemResponse> getStoresSortedByDistance(
-      StoreCategory category, int page, int size, double lat, double lng) {
+      StoreCategory category,
+      int page,
+      int size,
+      double lat,
+      double lng,
+      Double radiusKm,
+      String keyword) {
+    boolean hasKeyword = keyword != null && !keyword.isBlank();
 
     List<Store> stores;
     if (category == null) {
-      stores = storeRepository.findAllWithLatLng();
+      stores =
+          hasKeyword
+              ? storeRepository.findByKeywordWithLatLng(keyword)
+              : storeRepository.findAllWithLatLng();
     } else {
       List<StoreCategory> dbCategories = StoreCategory.dbCategoriesFor(category);
+      List<Store> raw =
+          hasKeyword
+              ? storeRepository.findByCategoriesAndKeywordWithLatLng(dbCategories, keyword)
+              : storeRepository.findByCategoriesWithLatLng(dbCategories);
       stores =
-          storeRepository.findByCategoriesWithLatLng(dbCategories).stream()
+          raw.stream()
               .filter(s -> StoreCategory.resolve(s.getCategory(), s.getName()) == category)
               .toList();
     }
 
-    List<StoreListItemResponse> sorted =
+    java.util.stream.Stream<StoreListItemResponse> stream =
         stores.stream()
             .map(
                 s ->
                     StoreListItemResponse.from(
                         s,
-                        GeoUtils.calculateDistanceKm(lat, lng, s.getLatitude(), s.getLongitude())))
-            .sorted(Comparator.comparingDouble(r -> r.getDistanceKm()))
-            .toList();
+                        GeoUtils.calculateDistanceKm(lat, lng, s.getLatitude(), s.getLongitude())));
+
+    if (radiusKm != null) {
+      stream = stream.filter(r -> r.getDistanceKm() <= radiusKm);
+    }
+
+    List<StoreListItemResponse> sorted =
+        stream.sorted(Comparator.comparingDouble(StoreListItemResponse::getDistanceKm)).toList();
 
     int start = page * size;
     int end = Math.min(start + size, sorted.size());
     List<StoreListItemResponse> content =
         start >= sorted.size() ? List.of() : sorted.subList(start, end);
 
-    log.debug("[StoreService] 거리순 매장 목록 조회 완료 - category: {}, 총 {}건", category, sorted.size());
+    log.debug(
+        "[StoreService] 거리순 매장 목록 조회 완료 - category: {}, radiusKm: {}, 총 {}건",
+        category,
+        radiusKm,
+        sorted.size());
     return PageResponse.of(content, page, size, sorted.size());
   }
 

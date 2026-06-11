@@ -315,8 +315,10 @@ public class AuthController {
       @RequestParam String code, HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     TokenResponse tokenResponse = authService.kakaoLogin(code, response);
-    String redirectUrl = kakaoAuthService.buildFrontendRedirectUrl()
-        + "?accessToken=" + tokenResponse.getAccessToken();
+    String redirectUrl =
+        kakaoAuthService.buildFrontendRedirectUrl()
+            + "?accessToken="
+            + tokenResponse.getAccessToken();
     response.sendRedirect(redirectUrl);
   }
 }

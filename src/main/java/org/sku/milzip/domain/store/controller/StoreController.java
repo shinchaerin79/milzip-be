@@ -39,15 +39,21 @@ public class StoreController {
       description =
           """
           **Purpose**
-          - 군장병 할인업소 목록을 페이지네이션으로 조회합니다.
+          - 군장병 할인업소 목록을 페이지네이션으로 조회합니다. 무한스크롤 구현 시 page를 증가시켜 호출하세요.
 
           **Query Parameters**
           - page: 페이지 번호 (기본값 0)
           - size: 페이지 크기 (기본값 20)
-          - category: 카테고리 필터 (FOOD / CAFE / LEISURE / ACCOMMODATION / ETC, 미입력 시 전체)
-          - sortBy: 정렬 기준 (discount=할인율순, 미입력 시 조회수순) — lat/lng 입력 시 자동으로 거리순 적용
-          - lat: 위도 (입력 시 거리순 정렬로 자동 전환)
-          - lng: 경도 (입력 시 거리순 정렬로 자동 전환)
+          - category: 카테고리 필터 (FOOD / ACCOMMODATION / PC_CAFE / SERVICE, 미입력 시 전체)
+            · FOOD = 음식(구 FOOD+CAFE 통합)
+            · ACCOMMODATION = 숙박
+            · PC_CAFE = PC방 (이름에 'pc', 'pc방' 포함 매장)
+            · SERVICE = 서비스 (구 여가+기타 중 PC방 제외)
+          - sortBy: 정렬 기준 (미입력 시 조회수순) — lat/lng 입력 시 거리순 자동 전환
+          - lat: 현재 위도 (입력 시 거리순 정렬로 자동 전환)
+          - lng: 현재 경도 (입력 시 거리순 정렬로 자동 전환)
+          - radius: 반경 필터 (km, lat/lng 필수). 지정 시 해당 반경 내 매장만 반환
+          - keyword: 매장명 검색어 (부분 일치, 대소문자 무시)
 
           **Returns**
           - content: 매장 목록 (id, name, category, address, phone, 위도/경도, 혜택 여부, 최대 할인율, 거리(km))
@@ -56,6 +62,7 @@ public class StoreController {
           **Note**
           - lat/lng를 넘기면 sortBy 값에 관계없이 거리순으로 자동 전환됩니다
           - 좌표가 없는 매장은 거리순 결과에서 제외됩니다 (카카오 enrichment 미완료 매장)
+          - radius는 lat/lng 없이 단독 사용 불가 (무시됩니다)
           """)
   @GetMapping
   public BaseResponse<PageResponse<StoreListItemResponse>> getStores(
@@ -64,8 +71,12 @@ public class StoreController {
       @RequestParam(required = false) StoreCategory category,
       @RequestParam(required = false) String sortBy,
       @RequestParam(required = false) Double lat,
-      @RequestParam(required = false) Double lng) {
-    return BaseResponse.success(storeService.getStores(category, page, size, sortBy, lat, lng));
+      @RequestParam(required = false) Double lng,
+      @Parameter(description = "반경 필터 (km). lat/lng와 함께 사용") @RequestParam(required = false)
+          Double radius,
+      @Parameter(description = "매장명 검색어 (부분 일치)") @RequestParam(required = false) String keyword) {
+    return BaseResponse.success(
+        storeService.getStores(category, page, size, sortBy, lat, lng, radius, keyword));
   }
 
   @Operation(

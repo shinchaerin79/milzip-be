@@ -22,7 +22,7 @@ public class StoreDetailResponse {
   @Schema(description = "매장명", example = "아트밸리 자작나무")
   private String name;
 
-  @Schema(description = "카테고리 (FOOD / CAFE / LEISURE / ACCOMMODATION / ETC)")
+  @Schema(description = "카테고리 (FOOD / ACCOMMODATION / PC_CAFE / SERVICE)")
   private StoreCategory category;
 
   @Schema(description = "주소", example = "경기도 포천시 신북면 아트밸리로 42")
