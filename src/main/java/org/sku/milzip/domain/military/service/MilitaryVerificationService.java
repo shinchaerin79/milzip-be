@@ -25,6 +25,8 @@ public class MilitaryVerificationService {
   private static final String RESULT_CODE_SUCCESS = "CF-00000";
   private static final String RESULT_CODE_NOT_INTERNET_ISSUABLE = "CF-12100";
   private static final String RESULT_CODE_KAKAO_AUTH_FAILED = "CF-12701";
+  private static final String RESULT_CODE_IDENTITY_MISMATCH = "CF-12837";
+  private static final String RESULT_CODE_IP_BLOCKED = "CF-12103";
   private static final String SERVICE_YN_ACTIVE = "복무를 마치지 않은 사람";
 
   private final MilitaryVerificationRepository militaryVerificationRepository;
@@ -41,6 +43,7 @@ public class MilitaryVerificationService {
             .orElseThrow(() -> new CustomException(MilitaryErrorCode.CODEF_API_FAILED));
 
     if (user.getMilitaryStatus() == MilitaryStatus.VERIFIED) {
+      log.warn("[MilitaryVerificationService] 이미 인증된 유저 - userId: {}", user.getId());
       throw new CustomException(MilitaryErrorCode.ALREADY_VERIFIED);
     }
 
@@ -70,8 +73,7 @@ public class MilitaryVerificationService {
     }
 
     if (!RESULT_CODE_TWO_WAY.equals(resultCode)) {
-      log.error("[MilitaryVerificationService] CODEF 1차 호출 실패 - code: {}", resultCode);
-      throw new CustomException(MilitaryErrorCode.CODEF_API_FAILED);
+      handleCodefError(resultCode, response, "1차");
     }
 
     JsonNode data = response.path("data");
@@ -104,7 +106,11 @@ public class MilitaryVerificationService {
     MilitaryVerification verification =
         militaryVerificationRepository
             .findByUserId(user.getId())
-            .orElseThrow(() -> new CustomException(MilitaryErrorCode.VERIFICATION_NOT_FOUND));
+            .orElseThrow(
+                () -> {
+                  log.warn("[MilitaryVerificationService] 인증 진행 기록 없음 - userId: {}", user.getId());
+                  return new CustomException(MilitaryErrorCode.VERIFICATION_NOT_FOUND);
+                });
 
     if (verification.isExpired()) {
       militaryVerificationRepository.delete(verification);
@@ -128,23 +134,55 @@ public class MilitaryVerificationService {
     String resultCode = response.path("result").path("code").asText();
     log.info("[MilitaryVerificationService] CODEF 2차 응답 코드: {}", resultCode);
 
-    if (RESULT_CODE_NOT_INTERNET_ISSUABLE.equals(resultCode)) {
-      militaryVerificationRepository.delete(verification);
-      throw new CustomException(MilitaryErrorCode.NOT_INTERNET_ISSUABLE);
-    }
-
-    if (RESULT_CODE_KAKAO_AUTH_FAILED.equals(resultCode)) {
-      militaryVerificationRepository.delete(verification);
-      throw new CustomException(MilitaryErrorCode.KAKAO_AUTH_CANCELLED);
-    }
-
     if (!RESULT_CODE_SUCCESS.equals(resultCode)) {
-      log.error("[MilitaryVerificationService] CODEF 2차 호출 실패 - code: {}", resultCode);
-      throw new CustomException(MilitaryErrorCode.CODEF_API_FAILED);
+      militaryVerificationRepository.delete(verification);
+      handleCodefError(resultCode, response, "2차");
     }
 
     processResult(response.path("data"), user);
     militaryVerificationRepository.delete(verification);
+    log.info(
+        "[MilitaryVerificationService] 군인 인증 확인 완료 - userId: {}, email: {}", user.getId(), email);
+  }
+
+  private void handleCodefError(String resultCode, JsonNode response, String step) {
+    String codefMessage = response.path("result").path("message").asText("알 수 없는 오류");
+    String extraMessage = response.path("result").path("extraMessage").asText("");
+
+    // 병무청 정상 업무 응답 (시스템 오류 아님)
+    if (RESULT_CODE_NOT_INTERNET_ISSUABLE.equals(resultCode)) {
+      log.info(
+          "[MilitaryVerificationService] 인터넷 발급 비대상 - code: {}, extra: {}",
+          resultCode,
+          extraMessage);
+      throw new CustomException(MilitaryErrorCode.NOT_INTERNET_ISSUABLE);
+    }
+    if (RESULT_CODE_IDENTITY_MISMATCH.equals(resultCode)) {
+      log.warn(
+          "[MilitaryVerificationService] 실명 인증 실패 - code: {}, message: {}",
+          resultCode,
+          codefMessage);
+      throw new CustomException(MilitaryErrorCode.IDENTITY_MISMATCH);
+    }
+    if (RESULT_CODE_KAKAO_AUTH_FAILED.equals(resultCode)) {
+      log.warn(
+          "[MilitaryVerificationService] 카카오 간편인증 실패 - code: {}, message: {}",
+          resultCode,
+          codefMessage);
+      throw new CustomException(MilitaryErrorCode.KAKAO_AUTH_CANCELLED);
+    }
+
+    // 시스템/인프라 오류
+    log.error(
+        "[MilitaryVerificationService] CODEF {} 호출 실패 - code: {}, message: {}, extra: {}",
+        step,
+        resultCode,
+        codefMessage,
+        extraMessage);
+    if (RESULT_CODE_IP_BLOCKED.equals(resultCode)) {
+      throw new CustomException(MilitaryErrorCode.IP_BLOCKED);
+    }
+    throw new CustomException(MilitaryErrorCode.CODEF_API_FAILED);
   }
 
   private void processResult(JsonNode data, User user) {

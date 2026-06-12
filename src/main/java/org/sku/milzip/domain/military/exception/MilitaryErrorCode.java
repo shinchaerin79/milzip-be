@@ -23,6 +23,9 @@ public enum MilitaryErrorCode implements BaseErrorCode {
   // 400 Bad Request (사용자 액션 실패)
   KAKAO_AUTH_CANCELLED(
       "MIL4003", "카카오 간편인증이 취소되었거나 시간이 초과되었습니다. 다시 시도해 주세요.", HttpStatus.BAD_REQUEST),
+  IDENTITY_MISMATCH(
+      "MIL4004", "실명인증에 실패했습니다. 이름과 주민등록번호를 확인 후 다시 시도해 주세요.", HttpStatus.BAD_REQUEST),
+  IP_BLOCKED("MIL4005", "일시적으로 서비스 이용이 제한되었습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.BAD_REQUEST),
 
   // 422 Unprocessable Entity
   NOT_INTERNET_ISSUABLE(

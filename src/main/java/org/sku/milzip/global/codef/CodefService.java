@@ -55,16 +55,24 @@ public class CodefService {
               .toEntity(String.class);
 
       log.info("[CodefService] 병적증명서 API HTTP 상태코드: {}", response.getStatusCode());
-      log.info("[CodefService] 병적증명서 API 응답 헤더: {}", response.getHeaders());
       String responseBody = response.getBody();
-      log.info("[CodefService] 병적증명서 API 원본 응답: {}", responseBody);
       if (responseBody == null) {
         log.error("[CodefService] 병적증명서 API 응답 바디가 null");
         throw new CustomException(MilitaryErrorCode.CODEF_API_FAILED);
       }
       String decoded = URLDecoder.decode(responseBody, StandardCharsets.UTF_8);
-      log.info("[CodefService] 병적증명서 API 디코딩 응답: {}", decoded);
-      return objectMapper.readTree(decoded);
+      JsonNode jsonResponse = objectMapper.readTree(decoded);
+
+      String resultCode = jsonResponse.path("result").path("code").asText("N/A");
+      String resultMessage = jsonResponse.path("result").path("message").asText("N/A");
+      String extraMessage = jsonResponse.path("result").path("extraMessage").asText("N/A");
+      log.info(
+          "[CodefService] 병적증명서 API 응답 - code: {}, message: {}, extraMessage: {}, data: {}",
+          resultCode,
+          resultMessage,
+          extraMessage,
+          jsonResponse.path("data"));
+      return jsonResponse;
     } catch (CustomException e) {
       throw e;
     } catch (Exception e) {
@@ -116,6 +124,8 @@ public class CodefService {
       String jti,
       long twoWayTimestamp) {
     Map<String, Object> map = buildFirstRequest(userName, identity, phoneNo, addrSido, addrSigungu);
+    map.put("secureNo", "");
+    map.put("secureNoRefresh", "");
     map.put("simpleAuth", "1");
     map.put("is2Way", true);
 
@@ -126,6 +136,12 @@ public class CodefService {
     twoWayInfo.put("twoWayTimestamp", twoWayTimestamp);
     map.put("twoWayInfo", twoWayInfo);
 
+    log.info(
+        "[CodefService] 2차 요청 파라미터 - jobIndex: {}, threadIndex: {}, jti: {}, twoWayTimestamp: {}",
+        jobIndex,
+        threadIndex,
+        jti,
+        twoWayTimestamp);
     return map;
   }
 
