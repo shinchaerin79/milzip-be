@@ -66,6 +66,25 @@ public class UserController {
   }
 
   @Operation(
+      summary = "[ 사용자 | 토큰 O | 이름 등록 ]",
+      security = @SecurityRequirement(name = "bearerAuth"),
+      description =
+          """
+          **Purpose**
+          - 카카오 로그인 시 이름을 제공받지 못한 경우 이름을 직접 입력합니다.
+
+          **Parameters**
+          - name: 실명 (2~20자)
+          """)
+  @PatchMapping("/me/name")
+  @PreAuthorize("isAuthenticated()")
+  public BaseResponse<UserResponse> updateName(
+      @AuthenticationPrincipal String email,
+      @Parameter(description = "이름") @RequestParam @Size(min = 2, max = 20) String name) {
+    return BaseResponse.success(userService.updateName(email, name));
+  }
+
+  @Operation(
       summary = "[ 사용자 | 토큰 O | 닉네임 변경 ]",
       security = @SecurityRequirement(name = "bearerAuth"),
       description = "**Error**\n- USR4093: 이미 사용 중인 닉네임 (409)")

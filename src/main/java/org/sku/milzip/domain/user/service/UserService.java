@@ -275,6 +275,17 @@ public class UserService {
     return result;
   }
 
+  // 이름 수정 (카카오 로그인 후 이름 미제공 시 사용)
+
+  @Transactional
+  public UserResponse updateName(String email, String name) {
+    log.info("[UserService] 이름 수정 - email: {}", email);
+    User user = getUser(email);
+    user.updateName(name);
+    log.info("[UserService] 이름 수정 완료 - userId: {}", user.getId());
+    return UserResponse.from(user);
+  }
+
   // 닉네임 수정
 
   @Transactional

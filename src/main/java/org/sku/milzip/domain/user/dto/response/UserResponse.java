@@ -24,6 +24,9 @@ public class UserResponse {
   @Schema(description = "닉네임", example = "밀집이")
   private String nickname;
 
+  @Schema(description = "이름 (카카오 로그인 시 null 가능)", example = "홍길동")
+  private String name;
+
   @Schema(description = "역할 (MEMBER / SOLDIER / ADMIN)")
   private UserRole role;
 
@@ -47,6 +50,7 @@ public class UserResponse {
         user.getId(),
         user.getEmail(),
         user.getNickname(),
+        user.getName(),
         user.getRole(),
         user.getStatus(),
         user.getAuthType(),

@@ -15,6 +15,7 @@ import org.sku.milzip.domain.auth.dto.request.PasswordChangeRequest;
 import org.sku.milzip.domain.auth.dto.request.SendVerificationEmailRequest;
 import org.sku.milzip.domain.auth.dto.request.SignUpRequest;
 import org.sku.milzip.domain.auth.dto.request.VerifyEmailRequest;
+import org.sku.milzip.domain.auth.dto.response.KakaoLoginResult;
 import org.sku.milzip.domain.auth.dto.response.TokenResponse;
 import org.sku.milzip.domain.auth.entity.VerificationType;
 import org.sku.milzip.domain.auth.service.AuthService;
@@ -314,11 +315,23 @@ public class AuthController {
   public void kakaoCallback(
       @RequestParam String code, HttpServletRequest request, HttpServletResponse response)
       throws IOException {
-    TokenResponse tokenResponse = authService.kakaoLogin(code, response);
-    String redirectUrl =
-        kakaoAuthService.buildFrontendRedirectUrl()
-            + "?accessToken="
-            + tokenResponse.getAccessToken();
-    response.sendRedirect(redirectUrl);
+    KakaoLoginResult result = authService.kakaoLogin(code, response);
+    StringBuilder deepLink =
+        new StringBuilder(kakaoAuthService.buildFrontendRedirectUrl())
+            .append("?accessToken=")
+            .append(result.accessToken())
+            .append("&refreshToken=")
+            .append(result.refreshToken());
+    if (result.needsName()) {
+      deepLink.append("&needsName=true");
+    }
+    String escapedUrl = deepLink.toString().replace("'", "\\'");
+    response.setContentType("text/html;charset=UTF-8");
+    response
+        .getWriter()
+        .write(
+            "<html><body><script>window.location.href='"
+                + escapedUrl
+                + "';</script><p>앱으로 이동 중...</p></body></html>");
   }
 }

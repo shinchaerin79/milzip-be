@@ -12,6 +12,7 @@ import org.sku.milzip.domain.auth.dto.request.PasswordChangeRequest;
 import org.sku.milzip.domain.auth.dto.request.SendVerificationEmailRequest;
 import org.sku.milzip.domain.auth.dto.request.SignUpRequest;
 import org.sku.milzip.domain.auth.dto.request.VerifyEmailRequest;
+import org.sku.milzip.domain.auth.dto.response.KakaoLoginResult;
 import org.sku.milzip.domain.auth.dto.response.KakaoUserInfoResponse;
 import org.sku.milzip.domain.auth.dto.response.TokenResponse;
 import org.sku.milzip.domain.auth.entity.EmailVerification;
@@ -294,7 +295,7 @@ public class AuthService {
   }
 
   @Transactional
-  public TokenResponse kakaoLogin(String code, HttpServletResponse response) {
+  public KakaoLoginResult kakaoLogin(String code, HttpServletResponse response) {
     log.info("[AuthService] 카카오 로그인 요청");
 
     KakaoUserInfoResponse userInfo =
@@ -333,8 +334,9 @@ public class AuthService {
 
     setAccessTokenCookie(response, accessToken);
     setRefreshTokenCookie(response, refreshToken);
-    log.info("[AuthService] 카카오 로그인 완료 - userId: {}, email: {}", user.getId(), user.getEmail());
-    return new TokenResponse(accessToken);
+    boolean needsName = user.getName() == null || user.getName().isBlank();
+    log.info("[AuthService] 카카오 로그인 완료 - userId: {}, needsName: {}", user.getId(), needsName);
+    return new KakaoLoginResult(accessToken, refreshToken, needsName);
   }
 
   private void setAccessTokenCookie(HttpServletResponse response, String token) {
