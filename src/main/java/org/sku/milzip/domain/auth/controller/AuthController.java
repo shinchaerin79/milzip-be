@@ -315,23 +315,31 @@ public class AuthController {
   public void kakaoCallback(
       @RequestParam String code, HttpServletRequest request, HttpServletResponse response)
       throws IOException {
-    KakaoLoginResult result = authService.kakaoLogin(code, response);
-    StringBuilder deepLink =
-        new StringBuilder(kakaoAuthService.buildFrontendRedirectUrl())
-            .append("?accessToken=")
-            .append(result.accessToken())
-            .append("&refreshToken=")
-            .append(result.refreshToken());
-    if (result.needsName()) {
-      deepLink.append("&needsName=true");
+    String redirectUrl;
+    try {
+      KakaoLoginResult result = authService.kakaoLogin(code, response);
+      StringBuilder deepLink =
+          new StringBuilder(kakaoAuthService.buildFrontendRedirectUrl())
+              .append("?accessToken=")
+              .append(result.accessToken())
+              .append("&refreshToken=")
+              .append(result.refreshToken());
+      if (result.needsName()) {
+        deepLink.append("&needsName=true");
+      }
+      redirectUrl = deepLink.toString();
+    } catch (Exception e) {
+      // 인가코드 재사용 등 오류 → 앱에 에러 전달 (500 대신 앱으로 복귀)
+      redirectUrl = kakaoAuthService.buildFrontendRedirectUrl() + "?error=kakao_login_failed";
     }
-    String escapedUrl = deepLink.toString().replace("'", "\\'");
+    String escapedUrl = redirectUrl.replace("'", "\\'");
     response.setContentType("text/html;charset=UTF-8");
     response
         .getWriter()
         .write(
-            "<html><body><script>window.location.href='"
+            "<html><head><meta http-equiv='Cache-Control' content='no-store'/></head>"
+                + "<body><script>window.location.replace('"
                 + escapedUrl
-                + "';</script><p>앱으로 이동 중...</p></body></html>");
+                + "');</script><p>앱으로 이동 중...</p></body></html>");
   }
 }
