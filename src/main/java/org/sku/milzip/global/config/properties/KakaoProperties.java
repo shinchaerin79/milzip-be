@@ -11,6 +11,7 @@ import lombok.Getter;
 public class KakaoProperties {
 
   private String clientId;
+  private String localApiKey;
   private String redirectUri;
   private String authUrl;
   private String tokenUrl;
