@@ -1,5 +1,8 @@
 package org.sku.milzip.domain.location.controller;
 
+import java.util.List;
+
+import org.sku.milzip.domain.location.dto.response.GeocodeResponse;
 import org.sku.milzip.domain.location.dto.response.ReverseGeocodeResponse;
 import org.sku.milzip.global.common.BaseResponse;
 import org.sku.milzip.global.kakao.KakaoLocalService;
@@ -31,5 +34,13 @@ public class LocationController {
     String address = kakaoLocalService.reverseGeocode(lat, lng).orElse("");
 
     return ResponseEntity.ok(BaseResponse.success(new ReverseGeocodeResponse(address)));
+  }
+
+  @Operation(summary = "주소 텍스트 → 좌표 변환", description = "주소 문자열로 좌표 목록을 반환합니다. 인증 불필요.")
+  @GetMapping("/geocode")
+  public ResponseEntity<BaseResponse<List<GeocodeResponse>>> geocode(@RequestParam String query) {
+
+    List<GeocodeResponse> results = kakaoLocalService.geocode(query);
+    return ResponseEntity.ok(BaseResponse.success(results));
   }
 }
