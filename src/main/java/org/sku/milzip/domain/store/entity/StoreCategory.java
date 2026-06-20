@@ -20,7 +20,7 @@ public enum StoreCategory {
 
   /** 기존 카페 키워드 매핑 (FOOD → CAFE 변환용) */
   private static final java.util.List<String> CAFE_KEYWORDS =
-      java.util.List.of("카페", "커피", "coffee", "cafe", "다방", "베이커리", "bakery", "빵");
+      java.util.List.of("카페", "커피", "coffee", "cafe", "베이커리", "bakery", "빵");
 
   /** PC방 판별 키워드 */
   private static final java.util.List<String> PC_KEYWORDS =

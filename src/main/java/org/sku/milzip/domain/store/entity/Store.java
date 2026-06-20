@@ -48,6 +48,9 @@ public class Store extends BaseTimeEntity {
 
   private Double longitude;
 
+  @Column(columnDefinition = "TEXT")
+  private String menuDescription;
+
   @Column(length = 30)
   private String phone;
 
@@ -85,6 +88,7 @@ public class Store extends BaseTimeEntity {
     store.name = request.getName();
     store.category = request.getCategory();
     store.address = request.getAddress();
+    store.menuDescription = request.getMenuDescription();
     store.latitude = request.getLatitude();
     store.longitude = request.getLongitude();
     store.phone = request.getPhone();
@@ -100,6 +104,7 @@ public class Store extends BaseTimeEntity {
     this.name = request.getName();
     this.category = request.getCategory();
     this.address = request.getAddress();
+    this.menuDescription = request.getMenuDescription();
     this.latitude = request.getLatitude();
     this.longitude = request.getLongitude();
     this.phone = request.getPhone();

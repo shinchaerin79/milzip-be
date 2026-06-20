@@ -96,7 +96,7 @@ public class RecommendationController {
           5. 시/도 기준으로 그룹핑 → 코스 1, 코스 2 형식으로 반환
 
           **Request Body (JSON)**
-          - freeText (필수): 자유 텍스트 요청 (예: "삼겹살 먹고 싶어")
+          - freeText (필수): 자유 텍스트 요청 (예: "치킨 먹고 싶은데 근처 치킨집 추천해줘")
           - companion (선택): FRIEND / COUPLE / FAMILY / ALONE
           - categories (선택): 방문할 카테고리 1~3개 선택
             · FOOD (식사) / CAFE (카페) / LEISURE (여가) / ACCOMMODATION (숙박) / ETC (기타)

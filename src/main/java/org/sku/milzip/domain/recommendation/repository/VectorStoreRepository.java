@@ -65,6 +65,8 @@ public class VectorStoreRepository {
       Store s = storeMap.get(id);
       if (s != null) ordered.add(s);
     }
+    // images는 별도 Bag이라 JOIN FETCH 불가 — 트랜잭션 안에서 미리 초기화
+    ordered.forEach(s -> s.getImages().size());
     log.debug("[VectorStoreRepository] 유사 매장 {}건 조회", ordered.size());
     return ordered;
   }
@@ -116,6 +118,8 @@ public class VectorStoreRepository {
         ordered.add(s);
       }
     }
+    // images는 별도 Bag이라 JOIN FETCH 불가 — 트랜잭션 안에서 미리 초기화
+    ordered.forEach(s -> s.getImages().size());
     log.debug("[VectorStoreRepository] 카테고리={} 유사 매장 {}건 조회", category, ordered.size());
     return ordered;
   }

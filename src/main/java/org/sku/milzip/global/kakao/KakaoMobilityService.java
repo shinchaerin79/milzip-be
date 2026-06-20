@@ -17,10 +17,10 @@ import tools.jackson.databind.ObjectMapper;
 public class KakaoMobilityService {
 
   private static final String DIRECTIONS_URL = "https://apis-navi.kakaomobility.com/v1/directions";
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final RestClient restClient;
   private final KakaoProperties kakaoProperties;
+  private final ObjectMapper objectMapper;
 
   public record RouteResult(double distanceKm, int durationSeconds) {}
 
@@ -48,7 +48,7 @@ public class KakaoMobilityService {
               .retrieve()
               .body(String.class);
 
-      JsonNode root = OBJECT_MAPPER.readTree(response);
+      JsonNode root = objectMapper.readTree(response);
       JsonNode routes = root.path("routes");
 
       if (!routes.isArray() || routes.isEmpty()) {

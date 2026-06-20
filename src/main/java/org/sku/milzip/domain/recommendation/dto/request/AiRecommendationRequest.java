@@ -17,7 +17,9 @@ import lombok.NoArgsConstructor;
 @Schema(description = "상황별 AI 맞춤 추천 요청")
 public class AiRecommendationRequest {
 
-  @Schema(description = "동행자 (FRIEND: 친구 / COUPLE: 연인 / FAMILY: 가족 / ALONE: 혼자)")
+  @Schema(
+      description = "동행자 (FRIEND: 친구 / COUPLE: 연인 / FAMILY: 가족 / ALONE: 혼자)",
+      example = "FAMILY")
   private CompanionType companion;
 
   @Schema(
@@ -27,7 +29,7 @@ public class AiRecommendationRequest {
   @Size(min = 1, max = 3, message = "카테고리는 1개 이상 3개 이하로 선택해주세요.")
   private List<StoreCategory> categories;
 
-  @Schema(description = "자유 텍스트 요청", example = "삼겹살 먹고 싶어")
+  @Schema(description = "자유 텍스트 요청", example = "치킨 먹고 싶은데 근처 치킨집 추천해줘")
   @NotBlank(message = "요청 내용을 입력해주세요.")
   private String freeText;
 

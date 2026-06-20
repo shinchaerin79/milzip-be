@@ -31,6 +31,9 @@ public class StoreCreateRequest {
   @Schema(description = "주소", example = "경기도 포천시 신북면 아트밸리로 42")
   private String address;
 
+  @Schema(description = "메뉴/음식 유형 설명", example = "삼겹살, 목살, 항정살 등 다양한 돼지고기 구이 전문점")
+  private String menuDescription;
+
   @Schema(description = "위도", example = "37.9162")
   private Double latitude;
 
