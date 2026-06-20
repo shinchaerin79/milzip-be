@@ -11,6 +11,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      ALLOWED_ORIGINS: https://milzip.site,https://www.milzip.site,https://milzip.netlify.app
       TZ: Asia/Seoul
     depends_on:
       db:
