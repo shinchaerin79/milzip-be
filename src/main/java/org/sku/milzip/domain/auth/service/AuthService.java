@@ -345,6 +345,7 @@ public class AuthService {
     cookie.setSecure(jwtProperties.isSecure());
     cookie.setPath("/");
     cookie.setMaxAge((int) (jwtProperties.getAccessExpiration() / 1000));
+    applyCookieDomain(cookie);
     response.addCookie(cookie);
   }
 
@@ -354,6 +355,7 @@ public class AuthService {
     cookie.setSecure(jwtProperties.isSecure());
     cookie.setPath("/");
     cookie.setMaxAge((int) (jwtProperties.getRefreshExpiration() / 1000));
+    applyCookieDomain(cookie);
     response.addCookie(cookie);
   }
 
@@ -363,7 +365,17 @@ public class AuthService {
     cookie.setSecure(jwtProperties.isSecure());
     cookie.setPath("/");
     cookie.setMaxAge(0);
+    applyCookieDomain(cookie);
     response.addCookie(cookie);
+  }
+
+  // 운영 환경에서 Domain=.milzip.site 로 설정해 milzip.site ↔ api.milzip.site 간 쿠키를 공유한다.
+  // (로컬은 cookie-domain 미설정 → 호스트 전용 쿠키)
+  private void applyCookieDomain(Cookie cookie) {
+    String domain = jwtProperties.getCookieDomain();
+    if (domain != null && !domain.isBlank()) {
+      cookie.setDomain(domain);
+    }
   }
 
   private String extractRefreshTokenCookie(HttpServletRequest request) {

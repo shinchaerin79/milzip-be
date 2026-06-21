@@ -17,4 +17,5 @@ public class KakaoProperties {
   private String tokenUrl;
   private String userInfoUrl;
   private String frontendRedirectUrl;
+  private String webRedirectUrl;
 }

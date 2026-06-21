@@ -285,12 +285,17 @@ public class AuthController {
           **Purpose**
           - 카카오 OAuth 인증 페이지로 리다이렉트
 
+          **Parameters**
+          - platform: 로그인 플랫폼 (`web` | `app`, 기본값 `app`). OAuth `state`로 실어 콜백까지 왕복되며, 콜백에서 웹/앱 리다이렉트 분기에 사용됩니다.
+
           **Returns**
           - 카카오 로그인 화면으로 302 리다이렉트
           """)
   @GetMapping("/kakao")
-  public void kakaoLogin(HttpServletResponse response) throws IOException {
-    response.sendRedirect(kakaoAuthService.buildAuthorizationUrl());
+  public void kakaoLogin(
+      @RequestParam(defaultValue = "app") String platform, HttpServletResponse response)
+      throws IOException {
+    response.sendRedirect(kakaoAuthService.buildAuthorizationUrl(platform));
   }
 
   @Operation(
@@ -303,34 +308,46 @@ public class AuthController {
 
           **Parameters**
           - code: 카카오 인가 코드 (쿼리 파라미터, 카카오가 자동 전달)
+          - state: 로그인 진입 시 전달한 플랫폼 값 (`web` | `app`). 카카오가 그대로 돌려줍니다.
 
           **Returns**
-          - accessToken: Bearer 토큰 (쿠키 및 응답 바디)
-          - 프론트엔드 URL로 302 리다이렉트
+          - 앱(`app`): `milzip://...?accessToken=...&refreshToken=...` 딥링크로 리다이렉트
+          - 웹(`web`): `https://milzip.site/auth/callback?accessToken=...` 로 리다이렉트
+            (refreshToken은 URL에 노출하지 않고 httpOnly 쿠키(Domain=.milzip.site)로만 전달)
 
           **Error**
           - AUTH5003: 카카오 API 호출 실패
           """)
   @GetMapping("/kakao/callback")
   public void kakaoCallback(
-      @RequestParam String code, HttpServletRequest request, HttpServletResponse response)
+      @RequestParam String code,
+      @RequestParam(required = false) String state,
+      HttpServletRequest request,
+      HttpServletResponse response)
       throws IOException {
+    boolean isWeb = "web".equals(state);
+    String baseUrl =
+        isWeb
+            ? kakaoAuthService.buildWebRedirectUrl()
+            : kakaoAuthService.buildFrontendRedirectUrl();
+
     String redirectUrl;
     try {
       KakaoLoginResult result = authService.kakaoLogin(code, response);
-      StringBuilder deepLink =
-          new StringBuilder(kakaoAuthService.buildFrontendRedirectUrl())
-              .append("?accessToken=")
-              .append(result.accessToken())
-              .append("&refreshToken=")
-              .append(result.refreshToken());
-      if (result.needsName()) {
-        deepLink.append("&needsName=true");
+      StringBuilder target =
+          new StringBuilder(baseUrl).append("?accessToken=").append(result.accessToken());
+      // 웹은 refreshToken을 URL에 노출하지 않고 httpOnly 쿠키로만 전달한다.
+      // 앱은 쿠키 사용이 어려우므로 기존대로 딥링크에 refreshToken을 함께 싣는다.
+      if (!isWeb) {
+        target.append("&refreshToken=").append(result.refreshToken());
       }
-      redirectUrl = deepLink.toString();
+      if (result.needsName()) {
+        target.append("&needsName=true");
+      }
+      redirectUrl = target.toString();
     } catch (Exception e) {
-      // 인가코드 재사용 등 오류 → 앱에 에러 전달 (500 대신 앱으로 복귀)
-      redirectUrl = kakaoAuthService.buildFrontendRedirectUrl() + "?error=kakao_login_failed";
+      // 인가코드 재사용 등 오류 → 프론트로 에러 전달 (500 대신 복귀)
+      redirectUrl = baseUrl + "?error=kakao_login_failed";
     }
     String escapedUrl = redirectUrl.replace("'", "\\'");
     response.setContentType("text/html;charset=UTF-8");

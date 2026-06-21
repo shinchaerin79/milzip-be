@@ -15,4 +15,5 @@ public class JwtProperties {
   private long refreshExpiration;
   private boolean secure;
   private String sameSite;
+  private String cookieDomain;
 }

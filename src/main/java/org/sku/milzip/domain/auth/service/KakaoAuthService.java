@@ -27,13 +27,19 @@ public class KakaoAuthService {
     return kakaoProperties.getFrontendRedirectUrl();
   }
 
-  public String buildAuthorizationUrl() {
+  public String buildWebRedirectUrl() {
+    return kakaoProperties.getWebRedirectUrl();
+  }
+
+  public String buildAuthorizationUrl(String platform) {
     return kakaoProperties.getAuthUrl()
         + "?client_id="
         + kakaoProperties.getClientId()
         + "&redirect_uri="
         + kakaoProperties.getRedirectUri()
-        + "&response_type=code";
+        + "&response_type=code"
+        + "&state="
+        + platform;
   }
 
   public KakaoTokenResponse exchangeCodeForToken(String code) {
