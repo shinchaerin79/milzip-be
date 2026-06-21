@@ -31,6 +31,8 @@ import org.sku.milzip.global.s3.enums.PathName;
 import org.sku.milzip.global.s3.service.S3AsyncService;
 import org.sku.milzip.global.security.CustomUserDetails;
 import org.sku.milzip.global.security.jwt.JwtProvider;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -340,42 +342,36 @@ public class AuthService {
   }
 
   private void setAccessTokenCookie(HttpServletResponse response, String token) {
-    Cookie cookie = new Cookie(ACCESS_TOKEN_COOKIE, token);
-    cookie.setHttpOnly(true);
-    cookie.setSecure(jwtProperties.isSecure());
-    cookie.setPath("/");
-    cookie.setMaxAge((int) (jwtProperties.getAccessExpiration() / 1000));
-    applyCookieDomain(cookie);
-    response.addCookie(cookie);
+    addCookie(response, ACCESS_TOKEN_COOKIE, token, jwtProperties.getAccessExpiration() / 1000);
   }
 
   private void setRefreshTokenCookie(HttpServletResponse response, String token) {
-    Cookie cookie = new Cookie(REFRESH_TOKEN_COOKIE, token);
-    cookie.setHttpOnly(true);
-    cookie.setSecure(jwtProperties.isSecure());
-    cookie.setPath("/");
-    cookie.setMaxAge((int) (jwtProperties.getRefreshExpiration() / 1000));
-    applyCookieDomain(cookie);
-    response.addCookie(cookie);
+    addCookie(response, REFRESH_TOKEN_COOKIE, token, jwtProperties.getRefreshExpiration() / 1000);
   }
 
   private void clearCookie(HttpServletResponse response, String name) {
-    Cookie cookie = new Cookie(name, null);
-    cookie.setHttpOnly(true);
-    cookie.setSecure(jwtProperties.isSecure());
-    cookie.setPath("/");
-    cookie.setMaxAge(0);
-    applyCookieDomain(cookie);
-    response.addCookie(cookie);
+    addCookie(response, name, "", 0);
   }
 
-  // 운영 환경에서 Domain=.milzip.site 로 설정해 milzip.site ↔ api.milzip.site 간 쿠키를 공유한다.
-  // (로컬은 cookie-domain 미설정 → 호스트 전용 쿠키)
-  private void applyCookieDomain(Cookie cookie) {
+  // ResponseCookie 로 SameSite·Domain 까지 설정한다.
+  // 운영(dev 프로파일)은 cookie-domain=milzip.site, same-site=None 으로
+  // milzip.site ↔ api.milzip.site 간 크로스 사이트 쿠키 전송을 허용한다.
+  // (RFC 6265 처리기는 Domain 앞의 점(.)을 허용하지 않으므로 점 없이 설정해야 한다)
+  private void addCookie(HttpServletResponse response, String name, String value, long maxAgeSec) {
+    ResponseCookie.ResponseCookieBuilder builder =
+        ResponseCookie.from(name, value)
+            .httpOnly(true)
+            .secure(jwtProperties.isSecure())
+            .path("/")
+            .maxAge(maxAgeSec)
+            .sameSite(jwtProperties.getSameSite());
+
     String domain = jwtProperties.getCookieDomain();
     if (domain != null && !domain.isBlank()) {
-      cookie.setDomain(domain);
+      builder.domain(domain);
     }
+
+    response.addHeader(HttpHeaders.SET_COOKIE, builder.build().toString());
   }
 
   private String extractRefreshTokenCookie(HttpServletRequest request) {
